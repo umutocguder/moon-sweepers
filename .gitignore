@@ -54,3 +54,8 @@ id_rsa*
 node_modules/
 .vercel
 data/backups/moon-save-*.json
+
+# AI Internal Context & Workflow Files (Local Only)
+AGENTS.md
+CLAUDE.md
+WORKLOG.md
