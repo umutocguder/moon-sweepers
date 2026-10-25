@@ -1,5 +1,56 @@
-node_modules/
+# Unity project exclusions
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Aa]ssets/AssetStoreTools*
+
+# Visual Studio / Rider / VSCode temporary files
+ExportedObj/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# macOS System Files
 .DS_Store
-.env*
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Rule 12: Strict Security & Secret Leakage Prevention
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*credentials*.json
+*service-account*.json
+secrets.json
+secrets.plist
+*.keystore
+id_rsa*
+
+# Node / Web artifacts (if any legacy scripts run)
+node_modules/
 .vercel
 data/backups/moon-save-*.json

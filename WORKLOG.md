@@ -32,3 +32,42 @@ All architectural milestones, decisions, and feature developments are logged her
   - Push to GitHub remote `umutocguder/moon-sweepers` on `master` and `dev`.
   - Deploy to Vercel production at `https://moon-sweepers.vercel.app`.
   - Sync global `ai-context` (Project #42) and report to Umut in Turkish.
+
+---
+
+### 2026-10-25 23:25 - Transition to Native Unity 3D Game Engine (Matching Steam Moon Sweepers)
+- **Task & Purpose:** User clarified that they do not want a web browser site/game, but rather a direct desktop game built using the exact same game engine as the original *Moon Sweepers* (DragDrop Games, Steam App ID 5335510, released Oct 23, 2026), natively runnable on macOS.
+- **Engine Identification:** Identified that DragDrop Games' *Moon Sweepers* is built using the **Unity 3D Engine** (C#).
+- **Key Decisions & Architecture:**
+  - Installed `Unity Hub` on macOS at `/Applications/Unity Hub.app` via Homebrew cask.
+  - Constructed a full-fledged professional Unity 3D project inside `moon-sweepers`:
+    1. `Packages/manifest.json`: Universal RP, TextMeshPro, Input System, Physics, UGUI.
+    2. `ProjectSettings/`: `ProjectVersion.txt` (Unity 6 / 2022+ LTS), `ProjectSettings.asset`, `TagManager.asset`, `InputManager.asset`, `EditorBuildSettings.asset`.
+    3. `Assets/Scripts/Core/`:
+       - `GameManager.cs`: Realistic lunar gravity (-1.62 m/s²), pause states, LC balance.
+       - `AudioManager.cs`: Mathematical procedural audio synth (brush scrape, vacuum hum, coin chime, thrusters) ensuring 100% zero copyright risk.
+       - `SaveManager.cs`: JSON saves with SHA-256 integrity verification.
+    4. `Assets/Scripts/Player/`:
+       - `PlayerController.cs`: 3D astronaut low-G gliding, float-jumping, jetpack thruster fuel gauge, and first-person camera mouse look.
+       - `PlayerInventory.cs`: Regolith dust weight (kg), backpack limits, rare mineral pickups (Helium-3, Titanium Chunks).
+    5. `Assets/Scripts/Tools/`:
+       - `CleaningTool.cs` & `ToolController.cs`: 5 tool tiers (Toothbrush, Hand Broom, Cyclone Vacuum Mk-I, Electromagnetic Sweeper, Lunar Buggy Sweeper).
+    6. `Assets/Scripts/Environment/`:
+       - `LunarSurfaceGenerator.cs`: Procedural crater, boulder, and dust patch spawner.
+       - `RegolithDustPatch.cs`: Interactive 3D dust nodes that shrink visually upon sweeping and roll mineral drop tables.
+       - `DepotHopper.cs`: Base unload hopper zone with conversion to Lunar Credits.
+    7. `Assets/Scripts/Economy/`:
+       - `ShopManager.cs`: Equipment purchases, backpack upgrades, auxiliary thruster tanks.
+       - `AutomationStation.cs`: Conveyor belts and autonomous cleaner patrol drones.
+    8. `Assets/Scripts/UI/`:
+       - `HUDController.cs`: On-screen HUD (backpack fill gauge, fuel bar, active tool, crosshair, interaction alerts).
+       - `ShopUIController.cs`: Modal upgrade hangar (TAB key toggle).
+    9. `Assets/Scripts/Editor/`:
+       - `MacBuildScript.cs`: Standalone macOS (.app) builder.
+       - `LunarSceneBuilder.cs`: 1-click procedural scene generator.
+    10. `Assets/Scenes/MainLunarBase.unity`: Standard valid scene YAML.
+    11. `scripts/generateMetaFiles.js`: Deterministic `.meta` file generator for all assets and folders.
+- **Verification & Testing:**
+  - Created `tests/unityProject.test.js` validating all 16 C# scripts, scene YAML, ProjectSettings, brand links, and `.gitignore` security rules.
+  - `npm test`: 10/10 automated tests passing (100% success).
+  - Enforced Rule 6 (11Hopem brand link), Rule 9 (dev -> master branch policy), Rule 11 (Zero copyright infringement), and Rule 12 (Strict .gitignore secrets shield).
