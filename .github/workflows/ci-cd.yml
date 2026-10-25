@@ -1,0 +1,31 @@
+# Created by 11Hopem
+# Copyright (c) 2026 11Hopem. All rights reserved.
+# Licensed under 11Hopem Proprietary License.
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main, dev ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Automated Unit Tests
+        run: |
+          npm test
+
+      - name: Build Production Assets
+        run: |
+          npm run build

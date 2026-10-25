@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://moon-sweepers.vercel.app/sitemap.xml
