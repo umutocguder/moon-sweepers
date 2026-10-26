@@ -1,7 +1,7 @@
 {
   "name": "moon-sweepers",
   "version": "1.0.0",
-  "description": "11Hopem Moon Sweepers - Lunar Dust Cleanup & Automation Simulator Game (Unity 3D Engine)",
+  "description": "11Hopem Moon Sweepers - Lunar Dust Cleanup & Automation Simulator Game (Unity 3D Engine & macOS Standalone)",
   "type": "module",
   "main": "Assets/Scripts/Core/GameManager.cs",
   "author": "11Hopem <umutocgdr@gmail.com>",
@@ -11,15 +11,17 @@
     "meta": "node scripts/generateMetaFiles.js",
     "open:unity": "open -a 'Unity Hub' .",
     "build:mac": "node scripts/buildMac.js",
+    "build:app": "bash scripts/packageMacApp.sh",
+    "start:app": "open Builds/macOS/11HopemMoonSweepers.app",
     "backup": "node scripts/runBackup.js"
   },
   "keywords": [
     "moon-sweepers",
     "unity-3d",
+    "macos-standalone",
     "lunar-cleanup",
     "simulation-game",
     "incremental-game",
-    "macos-game",
     "11hopem"
   ]
 }
