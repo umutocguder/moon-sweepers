@@ -1,788 +1,1021 @@
 <!DOCTYPE html>
-<!-- Created by 11Hopem -->
-<html lang="tr" class="dark">
+<!-- 11Hopem Moon Sweepers - Standalone 3D First-Person Lunar Simulation Game -->
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Moon Sweepers | Ay Yüzeyi Temizlik & Otomasyon Simülatörü</title>
-  <meta name="description" content="Ay tamamen tozla kaplandı ve LSD sana sadece tek bir diş fırçası verdi! Ay tozlarını süpür, depoya sat, vakum, rover ve otonom dronlar alarak dev bir ay temizlik imparatorluğu kur." />
-  <meta name="author" content="11Hopem" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-  <meta property="og:title" content="Moon Sweepers | 11Hopem Lunar Dust Cleaner" />
-  <meta property="og:description" content="Tek bir diş fırçasıyla başlayıp koca Ay'ı temizleme simülatörü! 11Hopem oyunu." />
-  <meta property="og:image" content="/og-image.png" />
-  <meta property="og:type" content="website" />
-
-  <!-- Schema.org JSON-LD -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "VideoGame",
-    "name": "Moon Sweepers",
-    "url": "https://moon-sweepers.vercel.app",
-    "description": "Ay tamamen tozla kaplandı ve LSD sana sadece tek bir diş fırçası verdi! Ay tozlarını süpür, depoya sat, vakum, rover ve otonom dronlar alarak dev bir ay temizlik imparatorluğu kur.",
-    "genre": ["Simulation", "Arcade", "Incremental"],
-    "gamePlatform": ["Web Browser", "Mobile"],
-    "operatingSystem": "All",
-    "author": {
-      "@type": "Organization",
-      "name": "11Hopem",
-      "url": "https://11hopem.com"
-    }
-  }
-  </script>
-
-  <!-- Tailwind CSS & Lucide Icons -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              400: '#38BDF8',
-              500: '#00F0FF',
-              600: '#0284C7',
-            },
-            gold: {
-              400: '#FFD700',
-              500: '#FFB800',
-              600: '#D97706',
-            },
-            dark: {
-              950: '#03050B',
-              900: '#050814',
-              850: '#0B1226',
-              800: '#111C3A',
-              700: '#1E293B',
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>11Hopem Moon Sweepers</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #03050B;
-      color: #F8FAFC;
-      user-select: none;
-      -webkit-user-select: none;
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #030408; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+    #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px; height: 14px;
+      pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
     }
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    .glass {
-      background: rgba(11, 18, 38, 0.8);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    #crosshair::before, #crosshair::after {
+      content: ''; position: absolute; background: rgba(0, 240, 255, 0.85);
     }
-    .glass-card {
-      background: rgba(17, 28, 58, 0.85);
-      border: 1px solid rgba(0, 240, 255, 0.2);
-      box-shadow: 0 10px 30px -10px rgba(0, 240, 255, 0.15);
+    #crosshair::before { width: 14px; height: 2px; }
+    #crosshair::after { width: 2px; height: 14px; }
+    #crosshair-dot { width: 4px; height: 4px; background: #fff; border-radius: 50%; }
+
+    /* HUD */
+    #hud {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; padding: 24px;
+      display: flex; flex-direction: column; justify-content: space-between;
     }
-    canvas {
-      image-rendering: pixelated;
-      cursor: crosshair;
+    .hud-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
     }
-    /* Touch controls on mobile */
-    .touch-btn {
-      touch-action: manipulation;
+    .brand-box {
+      background: rgba(10, 16, 32, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 12px 18px;
+    }
+    .brand-title {
+      font-size: 18px; font-weight: 800; letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #38BDF8, #00F0FF);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .brand-link {
+      font-size: 11px; color: #94A3B8; text-decoration: none; margin-top: 2px; display: inline-block;
+      pointer-events: auto; cursor: pointer; transition: color 0.2s;
+    }
+    .brand-link:hover { color: #00F0FF; }
+
+    .credits-box {
+      background: rgba(10, 16, 32, 0.75);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 12px 20px;
+      text-align: right;
+    }
+    .credits-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; }
+    .credits-val { font-size: 24px; font-weight: 800; color: #FFD700; text-shadow: 0 0 12px rgba(255, 215, 0, 0.4); }
+
+    .tool-center-indicator {
+      position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(10, 16, 32, 0.7); border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; color: #E2E8F0;
+    }
+
+    /* Bottom Gauges */
+    .hud-bottom {
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+    .gauges-container {
+      display: flex; flex-direction: column; gap: 10px; width: 320px;
+    }
+    .gauge-card {
+      background: rgba(10, 16, 32, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .gauge-header {
+      display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 6px;
+    }
+    .bar-bg {
+      width: 100%; height: 12px; background: rgba(255, 255, 255, 0.08); border-radius: 6px; overflow: hidden; position: relative;
+    }
+    .bar-fill {
+      height: 100%; width: 0%; border-radius: 6px; transition: width 0.1s linear;
+    }
+    .backpack-fill { background: linear-gradient(90deg, #0284C7, #00F0FF); }
+    .fuel-fill { background: linear-gradient(90deg, #D97706, #F59E0B); }
+
+    /* Interaction Prompt */
+    #interact-prompt {
+      position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #FFD700;
+      color: #FFD700; font-weight: 800; font-size: 15px;
+      padding: 10px 24px; border-radius: 24px;
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+      display: none; animation: pulsePrompt 1.2s infinite;
+    }
+    @keyframes pulsePrompt {
+      0%, 100% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.05); }
+    }
+
+    /* Controls Strip */
+    .controls-card {
+      background: rgba(10, 16, 32, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      border-radius: 10px;
+      padding: 10px 14px; font-size: 11px; line-height: 1.5; color: #94A3B8; text-align: right;
+    }
+    .key-badge {
+      display: inline-block; background: rgba(255, 255, 255, 0.15); color: #fff; font-weight: 700;
+      padding: 1px 6px; border-radius: 4px; font-size: 10px; margin: 0 2px;
+    }
+
+    /* Modal Hangar / Shop */
+    #shop-modal {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(3, 5, 11, 0.85); backdrop-filter: blur(12px);
+      display: none; align-items: center; justify-content: center; z-index: 50;
+    }
+    .shop-box {
+      width: 720px; max-height: 85vh;
+      background: #0B1226; border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 16px; padding: 28px; display: flex; flex-direction: column;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.15);
+    }
+    .shop-title-row {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 14px;
+    }
+    .shop-title { font-size: 20px; font-weight: 800; color: #00F0FF; letter-spacing: 0.5px; }
+    .shop-close-btn {
+      background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: #fff;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 13px;
+    }
+    .shop-close-btn:hover { background: rgba(255, 255, 255, 0.1); }
+    .shop-items-grid {
+      overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 6px;
+    }
+    .shop-card {
+      background: rgba(18, 27, 54, 0.7); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .shop-card-info h4 { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .shop-card-info p { font-size: 12px; color: #94A3B8; }
+    .shop-card-action { display: flex; align-items: center; gap: 14px; }
+    .price-tag { font-size: 15px; font-weight: 800; color: #FFD700; }
+    .buy-btn {
+      background: linear-gradient(135deg, #0284C7, #00F0FF); border: none; color: #03050B;
+      padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .buy-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .buy-btn:disabled { background: #334155; color: #64748B; cursor: not-allowed; transform: none; }
+    .owned-tag { color: #10B981; font-weight: 800; font-size: 13px; }
+
+    /* Click to Play Banner */
+    #start-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(3, 5, 11, 0.75); backdrop-filter: blur(6px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; cursor: pointer; text-align: center; padding: 20px;
+      transition: opacity 0.3s ease;
+    }
+    .start-hero-title {
+      font-size: 38px; font-weight: 900; letter-spacing: 1px;
+      background: linear-gradient(135deg, #38BDF8, #00F0FF, #FFD700);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;
+    }
+    .start-sub { font-size: 16px; color: #CBD5E1; margin-bottom: 24px; max-width: 520px; line-height: 1.5; }
+    .start-button {
+      background: linear-gradient(135deg, #0284C7, #00F0FF); color: #03050B;
+      font-weight: 900; font-size: 18px; padding: 14px 38px; border-radius: 30px;
+      border: none; box-shadow: 0 0 30px rgba(0, 240, 255, 0.4);
+      cursor: pointer;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+<body>
 
-  <!-- Top Navigation Bar -->
-  <header class="border-b border-white/10 bg-dark-900/90 sticky top-0 z-40 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <img src="/logo.svg" alt="Moon Sweepers Logo" class="w-10 h-10 drop-shadow-[0_0_12px_rgba(0,240,255,0.4)]" />
-        <div>
-          <span class="font-bold text-lg tracking-tight flex items-center gap-2">
-            Moon Sweepers <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">LSD-HQ</span>
-          </span>
-          <p class="text-[11px] text-slate-400">Lunar Surface Dept. Temizlik Simülatörü</p>
-        </div>
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <div id="crosshair">
+    <div id="crosshair-dot"></div>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <div class="hud-top">
+      <div class="brand-box">
+        <div class="brand-title">11Hopem Moon Sweepers</div>
+        <a class="brand-link" href="https://11hopem.com" target="_blank">11hopem.com</a>
       </div>
 
-      <div class="flex items-center gap-3">
-        <button onclick="toggleAudio()" id="btnAudioToggle" class="px-3 py-1.5 rounded-xl border border-white/10 hover:border-cyan-400 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5">
-          <i data-lucide="volume-2" id="iconAudio" class="w-3.5 h-3.5 text-cyan-400"></i> <span id="labelAudio">Ses Açık</span>
-        </button>
-        <button onclick="openHelpModal()" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-dark-700 text-xs text-slate-300 transition flex items-center gap-1">
-          <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Kılavuz
-        </button>
-        <a href="https://11hopem.com" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-xs font-semibold text-white shadow-md shadow-cyan-500/20 transition">
-          11Hopem <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
-        </a>
-      </div>
-    </div>
-  </header>
-
-  <!-- Live Game Stats Strip -->
-  <section class="border-b border-white/5 bg-dark-850/70 py-3 sm:py-4">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        
-        <!-- Lunar Credits (LC) -->
-        <div class="glass p-3 rounded-xl flex items-center gap-3 border-amber-500/30">
-          <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
-            🪙
-          </div>
-          <div>
-            <div class="text-[11px] text-slate-400 font-medium">Lunar Kredisi (LC)</div>
-            <div id="statCredits" class="text-lg sm:text-xl font-bold text-amber-300 mono">0 LC</div>
-          </div>
-        </div>
-
-        <!-- Backpack Load -->
-        <div class="glass p-3 rounded-xl flex items-center gap-3 border-cyan-500/30">
-          <div class="w-10 h-10 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl shrink-0">
-            🎒
-          </div>
-          <div class="flex-grow">
-            <div class="flex items-center justify-between text-[11px] text-slate-400 mb-0.5">
-              <span>Sırt Çantası Tozu</span>
-              <span id="statBackpackText" class="font-mono text-white">0 / 20 kg</span>
-            </div>
-            <div class="w-full h-2 bg-dark-900 rounded-full overflow-hidden border border-white/10">
-              <div id="statBackpackBar" class="h-full bg-cyan-400 rounded-full transition-all duration-200" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Active Equipment -->
-        <div class="glass p-3 rounded-xl flex items-center gap-3">
-          <div id="statToolIcon" class="w-10 h-10 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center text-xl shrink-0">
-            🪥
-          </div>
-          <div>
-            <div class="text-[11px] text-slate-400 font-medium">Aktif Ekipman</div>
-            <div id="statToolName" class="text-sm font-bold text-white truncate">Standart Diş Fırçası</div>
-          </div>
-        </div>
-
-        <!-- Surface Cleanliness Percentage -->
-        <div class="glass p-3 rounded-xl flex items-center gap-3 border-emerald-500/30">
-          <div class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
-            🌕
-          </div>
-          <div class="flex-grow">
-            <div class="flex items-center justify-between text-[11px] text-slate-400 mb-0.5">
-              <span>Ay Yüzeyi Temizliği</span>
-              <span id="statCleanPercent" class="font-mono font-bold text-emerald-400">%0</span>
-            </div>
-            <div class="w-full h-2 bg-dark-900 rounded-full overflow-hidden border border-white/10">
-              <div id="statCleanBar" class="h-full bg-emerald-400 rounded-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- Main Game Stage & Controls -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-grow flex flex-col items-center">
-    
-    <!-- Game Canvas Container -->
-    <div class="relative w-full rounded-2xl overflow-hidden glass border border-white/15 shadow-2xl bg-dark-950 flex justify-center items-center">
-      
-      <canvas id="gameCanvas" width="1050" height="600" class="w-full h-auto max-h-[68vh] object-contain"></canvas>
-
-      <!-- Overlay Floating Prompt: Return to Depot when backpack full -->
-      <div id="fullAlert" class="absolute top-6 left-1/2 -translate-x-1/2 hidden bg-red-600/90 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg border border-red-400 animate-pulse flex items-center gap-2">
-        <i data-lucide="alert-triangle" class="w-4 h-4"></i> ÇANTA DOLDU! Sol taraftaki LSD Depo Haznesine dönüp satınız.
+      <div class="tool-center-indicator" id="active-tool-display">
+        Active Tool: Standard Toothbrush [Tier 1]
       </div>
 
-      <!-- Quick Control Helper in bottom right corner of canvas -->
-      <div class="absolute bottom-3 right-3 hidden sm:flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[11px] text-slate-300">
-        <span>🎮 <b>WASD / Oklar:</b> Uçuş</span>
-        <span>•</span>
-        <span>🧹 <b>Boşluk / Sol Tık:</b> Süpür / Vakumla</span>
-        <span>•</span>
-        <span>🏭 <b>Depo:</b> Otomatik Satış</span>
+      <div class="credits-box">
+        <div class="credits-label">Lunar Credits</div>
+        <div class="credits-val" id="credits-counter">LC $0</div>
       </div>
     </div>
 
-    <!-- Mobile Virtual Controls (Shown only on small screens) -->
-    <div class="sm:hidden w-full max-w-sm mt-4 grid grid-cols-3 gap-2 px-2">
-      <div></div>
-      <button id="btnMobileUp" class="touch-btn h-12 rounded-xl bg-dark-800 active:bg-cyan-600 text-white flex items-center justify-center border border-white/15">
-        <i data-lucide="chevron-up" class="w-6 h-6"></i>
-      </button>
-      <div></div>
+    <div id="interact-prompt">PRESS [E] TO UNLOAD REGOLITH DUST</div>
 
-      <button id="btnMobileLeft" class="touch-btn h-12 rounded-xl bg-dark-800 active:bg-cyan-600 text-white flex items-center justify-center border border-white/15">
-        <i data-lucide="chevron-left" class="w-6 h-6"></i>
-      </button>
-      <button id="btnMobileSweep" class="touch-btn h-12 rounded-xl bg-cyan-600 active:bg-cyan-500 font-bold text-white text-xs flex items-center justify-center shadow-lg shadow-cyan-500/20">
-        SÜPÜR
-      </button>
-      <button id="btnMobileRight" class="touch-btn h-12 rounded-xl bg-dark-800 active:bg-cyan-600 text-white flex items-center justify-center border border-white/15">
-        <i data-lucide="chevron-right" class="w-6 h-6"></i>
-      </button>
-
-      <div></div>
-      <button id="btnMobileDown" class="touch-btn h-12 rounded-xl bg-dark-800 active:bg-cyan-600 text-white flex items-center justify-center border border-white/15">
-        <i data-lucide="chevron-down" class="w-6 h-6"></i>
-      </button>
-      <div></div>
-    </div>
-
-    <!-- Upgrade & Automation Hangar (Store Tabs) -->
-    <div class="w-full mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-      
-      <!-- Tool Upgrades Column -->
-      <div class="glass p-5 rounded-2xl">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
-            <i data-lucide="wrench" class="w-4 h-4 text-cyan-400"></i> Ekipman & Süpürge Cephanesi
-          </h3>
-          <span class="text-[11px] text-slate-400">Tek Diş Fırçasından Rover'a</span>
+    <div class="hud-bottom">
+      <div class="gauges-container">
+        <!-- Backpack Gauge -->
+        <div class="gauge-card">
+          <div class="gauge-header">
+            <span>Backpack Capacity</span>
+            <span id="backpack-text">0.0 / 30.0 kg</span>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill backpack-fill" id="backpack-bar"></div>
+          </div>
         </div>
 
-        <div id="toolsList" class="space-y-3">
-          <!-- Injected by JavaScript -->
+        <!-- Thruster Fuel Gauge -->
+        <div class="gauge-card">
+          <div class="gauge-header">
+            <span>Jetpack Fuel</span>
+            <span id="fuel-text">100%</span>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill fuel-fill" id="fuel-bar" style="width: 100%;"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Automation & Stations Column -->
-      <div class="glass p-5 rounded-2xl">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
-            <i data-lucide="factory" class="w-4 h-4 text-amber-400"></i> Ay İstasyonu Otomasyonu & Dronlar
-          </h3>
-          <span class="text-[11px] text-slate-400">Pasif Gelir & Konveyörler</span>
-        </div>
-
-        <div id="automationsList" class="space-y-3">
-          <!-- Injected by JavaScript -->
-        </div>
-      </div>
-
-    </div>
-
-  </main>
-
-  <!-- Help & Story Modal -->
-  <div id="helpModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="glass-card p-6 sm:p-8 rounded-2xl max-w-lg w-full bg-dark-900 relative">
-      <button onclick="closeHelpModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-
-      <div class="flex items-center gap-3 mb-4">
-        <span class="text-3xl">🪥</span>
-        <div>
-          <h3 class="text-lg font-bold text-white">Moon Sweepers Hikayesi</h3>
-          <p class="text-xs text-cyan-400 font-mono">Lunar Surface Dept. (LSD) Brifingi</p>
-        </div>
-      </div>
-
-      <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
-        <p>
-          Ay milyarlarca yıldır uzay tozu ve regolit ile kaplandı. <b>Lunar Surface Department (LSD)</b> seni ve ekibini Ay'ı pırıl pırıl temizlemen için gönderdi. 
-        </p>
-        <p>
-          Ancak bir pürüz var: <b>Başlangıç bütçen sadece tek bir standart diş fırçası almaya yetti!</b>
-        </p>
-        <div class="bg-dark-850 p-3 rounded-xl border border-white/10 space-y-1.5 font-mono text-[11px]">
-          <div>1. <b>WASD / Ok Tuşları:</b> Ay'ın düşük yerçekiminde süzül.</div>
-          <div>2. <b>Boşluk / Sol Tık:</b> Diş fırçanla tozu süpür.</div>
-          <div>3. <b>Sol Taraftaki Depo (Hopper):</b> Çantan dolunca sarı çizgili depoya gir, tozu Lunar Kredisine (LC) dönüştür.</div>
-          <div>4. <b>Yükseltmeler:</b> Kazandığın kredilerle süpürge, vakum makinesi, konveyör bantları ve otonom dronlar al!</div>
-        </div>
-      </div>
-
-      <div class="mt-6 flex justify-end">
-        <button onclick="closeHelpModal()" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white">Anladım, Süpürmeye Başla!</button>
+      <div class="controls-card">
+        <div><span class="key-badge">W</span><span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> Move</div>
+        <div><span class="key-badge">Space</span> Low-G Jump</div>
+        <div><span class="key-badge">Right Click / Shift</span> Jetpack</div>
+        <div><span class="key-badge">Left Click</span> Scrub / Vacuum</div>
+        <div><span class="key-badge">1 - 5</span> Switch Tool</div>
+        <div><span class="key-badge">TAB</span> Equipment Hangar</div>
       </div>
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer class="border-t border-white/10 bg-dark-900 py-6 text-xs text-slate-400 mt-auto">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-      <div>
-        Created by <a href="https://11hopem.com" target="_blank" rel="noopener noreferrer" class="text-white hover:text-cyan-400 font-semibold transition">11Hopem</a>. All rights reserved.
+  <!-- Start Screen -->
+  <div id="start-overlay">
+    <div class="start-hero-title">11HOPEM MOON SWEEPERS</div>
+    <div class="start-sub">
+      You have been assigned by the Lunar Surface Department to clean the Moon.<br/>
+      Under real lunar gravity (-1.62 m/s²), start with your trusty toothbrush, clean regolith dust patches, deposit at the Base Hopper, and automate your empire!
+    </div>
+    <button class="start-button" id="start-click-btn">START CLEANING</button>
+  </div>
+
+  <!-- Hangar Upgrade Modal -->
+  <div id="shop-modal">
+    <div class="shop-box">
+      <div class="shop-title-row">
+        <div class="shop-title">LUNAR EQUIPMENT HANGAR</div>
+        <button class="shop-close-btn" id="shop-close-btn">Close [TAB]</button>
       </div>
-      <div class="flex items-center gap-4">
-        <button onclick="resetGameSave()" class="text-red-400 hover:text-red-300 transition">
-          İlerlemeyi Sıfırla
-        </button>
-        <span class="text-slate-600">•</span>
-        <a href="https://github.com/umutocguder/moon-sweepers" target="_blank" rel="noopener noreferrer" class="hover:text-white transition flex items-center gap-1">
-          <i data-lucide="github" class="w-3.5 h-3.5"></i> GitHub Private Repo
-        </a>
+      <div class="shop-items-grid" id="shop-items-list">
+        <!-- Items dynamically populated -->
       </div>
     </div>
-  </footer>
+  </div>
 
-  <!-- Game Logic Engine (ES Modules) -->
-  <script type="module">
-    import { ToolSystem, TOOL_TIERS } from './src/game/toolSystem.js';
-    import { EconomySystem, AUTOMATION_UPGRADES, MINERAL_VALUES } from './src/game/economySystem.js';
-    import { LunarWorld } from './src/game/lunarWorld.js';
-    import { Player } from './src/game/player.js';
-    import { AudioSynth } from './src/game/audioSynth.js';
+  <script>
+    /* ====================================================================
+       11Hopem Moon Sweepers - Pure Native 3D First-Person Simulation Engine
+       100% Zero External CDN / Asset Dependencies
+       Brand: 11Hopem (https://11hopem.com)
+       ==================================================================== */
 
-    // Canvas & Systems
-    const canvas = document.getElementById('gameCanvas');
+    // --- Procedural Web Audio API Synthesizer (Rule 11: Zero Copyright Risk) ---
+    class ProceduralAudio {
+      constructor() {
+        this.ctx = null;
+        this.vacOsc = null;
+        this.vacGain = null;
+      }
+      init() {
+        try {
+          if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch(e) {}
+      }
+      playBrushScrape() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = this.ctx.sampleRate * 0.12;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'highpass';
+          filter.frequency.setValueAtTime(1400, now);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.4, now);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch(e) {}
+      }
+      playCoinChime() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1046.5, now);
+          osc.frequency.exponentialRampToValueAtTime(1318.5, now + 0.18);
+          gain.gain.setValueAtTime(0.5, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } catch(e) {}
+      }
+      playThruster() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(65, now);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } catch(e) {}
+      }
+      setVacuum(active) {
+        if (!this.ctx) return;
+        try {
+          if (active) {
+            if (!this.vacOsc) {
+              this.vacOsc = this.ctx.createOscillator();
+              this.vacGain = this.ctx.createGain();
+              this.vacOsc.type = 'triangle';
+              this.vacOsc.frequency.setValueAtTime(110, this.ctx.currentTime);
+              this.vacGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+              this.vacOsc.connect(this.vacGain);
+              this.vacGain.connect(this.ctx.destination);
+              this.vacOsc.start();
+            }
+          } else {
+            if (this.vacOsc) {
+              this.vacOsc.stop();
+              this.vacOsc.disconnect();
+              this.vacOsc = null;
+            }
+          }
+        } catch(e) {}
+      }
+    }
+
+    const audio = new ProceduralAudio();
+
+    // --- Tool Definitions ---
+    const TOOLS = [
+      { id: 'toothbrush', name: 'Standard Toothbrush', tier: 1, power: 1.0, range: 4.5, mode: 'click', cost: 0, color: '#38BDF8' },
+      { id: 'broom', name: 'Lunar Hand Broom', tier: 2, power: 3.5, range: 5.5, mode: 'click', cost: 120, color: '#FBBF24' },
+      { id: 'vacuum', name: 'Cyclone Vacuum Mk-I', tier: 3, power: 12.0, range: 7.0, mode: 'hold', cost: 550, color: '#EF4444' },
+      { id: 'electro', name: 'Electromagnetic Sweeper', tier: 4, power: 30.0, range: 9.0, mode: 'hold', cost: 1800, color: '#A855F7' },
+      { id: 'buggy', name: 'Lunar Sweeper Buggy', tier: 5, power: 100.0, range: 12.0, mode: 'hold', cost: 5000, color: '#10B981' }
+    ];
+
+    // --- State ---
+    let credits = 0;
+    let backpackKg = 0;
+    let maxBackpackKg = 30;
+    let activeToolIndex = 0;
+    let unlockedTools = [0];
+    let isShopOpen = false;
+    let isGameStarted = false;
+
+    // Upgrades
+    const UPGRADES = [
+      { id: 'tool_1', title: 'Lunar Hand Broom', desc: 'Tier 2 tool. Sweeps 3.5 kg/hit.', cost: 120, type: 'tool', index: 1 },
+      { id: 'tool_2', title: 'Cyclone Vacuum Mk-I', desc: 'Tier 3 tool. Continuous suction 12 kg/sec.', cost: 550, type: 'tool', index: 2 },
+      { id: 'tool_3', title: 'Electromagnetic Sweeper', desc: 'Tier 4 tool. Radial pull 30 kg/sec.', cost: 1800, type: 'tool', index: 3 },
+      { id: 'tool_4', title: 'Lunar Sweeper Buggy', desc: 'Tier 5 machinery. Devours 100 kg/sec.', cost: 5000, type: 'tool', index: 4 },
+      { id: 'bp_1', title: 'Reinforced Backpack', desc: 'Adds +30 kg backpack capacity.', cost: 150, type: 'backpack', value: 30 },
+      { id: 'bp_2', title: 'Titanium Hauler Sack', desc: 'Adds +90 kg backpack capacity.', cost: 650, type: 'backpack', value: 90 },
+      { id: 'fuel_1', title: 'Auxiliary Fuel Tank', desc: 'Adds +50 maximum jetpack fuel.', cost: 250, type: 'fuel', value: 50 },
+      { id: 'conveyor', title: 'Regolith Conveyor Line', desc: 'Transports nearby dust into hopper passively.', cost: 900, type: 'automation', rate: 3 },
+      { id: 'drone', title: 'Autonomous Lunar Drone', desc: 'AI drone flies in circular orbit sweeping dust.', cost: 2500, type: 'drone', rate: 8 }
+    ];
+    let purchasedUpgrades = {};
+    let passiveRates = { conveyor: 0, drone: 0 };
+
+    // --- 3D World & Player Engine ---
+    const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
-    const audio = new AudioSynth();
-    const world = new LunarWorld(canvas.width, canvas.height);
-    const player = new Player(240, 300);
-    const economy = new EconomySystem(0);
 
-    // Keyboard state
+    function resizeCanvas() {
+      canvas.width = window.innerWidth || 1280;
+      canvas.height = window.innerHeight || 800;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Player State
+    const player = {
+      x: 0, y: 1.4, z: -8,
+      vx: 0, vy: 0, vz: 0,
+      yaw: 0, pitch: 0,
+      speed: 8.5,
+      fuel: 100, maxFuel: 100,
+      isGrounded: false,
+      sweepAnim: 0
+    };
+
+    // Environment Objects
+    const DEPOT = { x: 0, y: 0, z: 0, radius: 4.5 };
+    const dustPatches = [];
+    const boulders = [];
+    const stars = [];
+
+    // Generate Stars in Sky
+    for (let i = 0; i < 240; i++) {
+      stars.push({
+        x: (Math.random() - 0.5) * 2000,
+        y: Math.random() * 800 + 100,
+        z: (Math.random() - 0.5) * 2000,
+        size: Math.random() * 1.8 + 0.6,
+        alpha: Math.random() * 0.7 + 0.3
+      });
+    }
+
+    // Generate 75 Dust Patches
+    for (let i = 0; i < 75; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 65 + 6;
+      dustPatches.push({
+        x: Math.cos(angle) * dist,
+        y: 0.02,
+        z: Math.sin(angle) * dist,
+        maxMass: 15,
+        mass: 15,
+        radius: Math.random() * 1.6 + 1.2,
+        color: '#3F4450'
+      });
+    }
+
+    // Generate Boulders
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 70 + 8;
+      boulders.push({
+        x: Math.cos(angle) * dist,
+        y: 0.6,
+        z: Math.sin(angle) * dist,
+        size: Math.random() * 1.4 + 0.8
+      });
+    }
+
+    // Input States
     const keys = {};
-    let isSweepingMouse = false;
-    let floatingTexts = [];
+    let isMouseDown = false;
+    let isRightMouseDown = false;
+    let lastClientX = null;
+    let lastClientY = null;
 
-    // Load Save if exists
-    const saveKey = '11hopem_moon_sweepers_state';
-    const localSaved = localStorage.getItem(saveKey);
-    if (localSaved) {
+    function dismissStartOverlay() {
+      isGameStarted = true;
+      audio.init();
+      const el = document.getElementById('start-overlay');
+      if (el) el.style.display = 'none';
       try {
-        const s = JSON.parse(localSaved);
-        economy.credits = s.credits || 0;
-        economy.totalDustCleaned = s.totalDustCleaned || 0;
-        economy.automation = s.automation || economy.automation;
-        if (s.toolId) player.setTool(s.toolId);
+        canvas.requestPointerLock();
       } catch(e) {}
     }
 
-    function saveGame() {
-      const state = {
-        credits: economy.credits,
-        totalDustCleaned: economy.totalDustCleaned,
-        automation: economy.automation,
-        toolId: player.currentToolId
-      };
-      localStorage.setItem(saveKey, JSON.stringify(state));
-    }
+    document.getElementById('start-overlay').addEventListener('click', dismissStartOverlay);
+    document.getElementById('start-click-btn').addEventListener('click', dismissStartOverlay);
 
-    // Input handlers
+    // Mouse Movement: Robust tracking with or without Pointer Lock
+    window.addEventListener('mousemove', (e) => {
+      if (isShopOpen) return;
+      const sens = 0.0024;
+      let dx = e.movementX;
+      let dy = e.movementY;
+
+      if (dx === undefined || (dx === 0 && dy === 0 && lastClientX !== null)) {
+        if (lastClientX !== null) {
+          dx = e.clientX - lastClientX;
+          dy = e.clientY - lastClientY;
+        }
+      }
+      lastClientX = e.clientX;
+      lastClientY = e.clientY;
+
+      if (dx !== undefined && !isNaN(dx)) {
+        if (Math.abs(dx) < 250) player.yaw += dx * sens;
+        if (Math.abs(dy) < 250) player.pitch -= dy * sens;
+        player.pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, player.pitch));
+      }
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (isShopOpen) return;
+      if (!isGameStarted) {
+        dismissStartOverlay();
+      }
+      audio.init();
+      if (e.button === 0) {
+        isMouseDown = true;
+        triggerSweep();
+      } else if (e.button === 2) {
+        isRightMouseDown = true;
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        isMouseDown = false;
+        audio.setVacuum(false);
+      } else if (e.button === 2) {
+        isRightMouseDown = false;
+      }
+    });
+
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
     window.addEventListener('keydown', (e) => {
+      if (!isGameStarted) {
+        dismissStartOverlay();
+      }
       audio.init();
       keys[e.code] = true;
-      if (e.code === 'Space') e.preventDefault();
+
+      if (e.code === 'KeyE') {
+        tryDepotUnload();
+      }
+
+      if (e.code === 'Tab' || e.code === 'KeyB') {
+        e.preventDefault();
+        toggleShop();
+      }
+
+      if (e.code === 'Escape') {
+        if (isShopOpen) toggleShop();
+      }
+
+      // Quick Tool Switch
+      if (e.code.startsWith('Digit')) {
+        const d = parseInt(e.code.replace('Digit', '')) - 1;
+        if (d >= 0 && d < TOOLS.length && unlockedTools.includes(d)) {
+          activeToolIndex = d;
+          updateHUD();
+        }
+      }
     });
 
     window.addEventListener('keyup', (e) => {
       keys[e.code] = false;
     });
 
-    canvas.addEventListener('mousedown', () => {
-      audio.init();
-      isSweepingMouse = true;
-    });
+    // --- Sweeping Mechanics ---
+    function triggerSweep() {
+      const tool = TOOLS[activeToolIndex];
+      player.sweepAnim = 1.0;
 
-    window.addEventListener('mouseup', () => {
-      isSweepingMouse = false;
-    });
-
-    // Touch mobile controls
-    const bindTouch = (id, code) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); audio.init(); keys[code] = true; });
-      el.addEventListener('touchend', (e) => { e.preventDefault(); keys[code] = false; });
-    };
-    bindTouch('btnMobileUp', 'ArrowUp');
-    bindTouch('btnMobileDown', 'ArrowDown');
-    bindTouch('btnMobileLeft', 'ArrowLeft');
-    bindTouch('btnMobileRight', 'ArrowRight');
-    
-    const sweepBtn = document.getElementById('btnMobileSweep');
-    if (sweepBtn) {
-      sweepBtn.addEventListener('touchstart', (e) => { e.preventDefault(); audio.init(); isSweepingMouse = true; });
-      sweepBtn.addEventListener('touchend', (e) => { e.preventDefault(); isSweepingMouse = false; });
+      if (tool.mode === 'click') {
+        audio.playBrushScrape();
+        performSweep(tool.power, tool.range);
+      } else {
+        audio.setVacuum(true);
+      }
     }
 
-    // Audio toggle
-    window.toggleAudio = function() {
-      audio.init();
-      const isMuted = audio.toggleMute();
-      document.getElementById('labelAudio').textContent = isMuted ? 'Ses Kapalı' : 'Ses Açık';
-      document.getElementById('iconAudio').setAttribute('data-lucide', isMuted ? 'volume-x' : 'volume-2');
-      lucide.createIcons();
-    };
+    function performSweep(amountKg, reach) {
+      if (backpackKg >= maxBackpackKg) return;
 
-    window.openHelpModal = () => document.getElementById('helpModal').classList.remove('hidden');
-    window.closeHelpModal = () => document.getElementById('helpModal').classList.add('hidden');
+      const forwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
+      const forwardZ = Math.cos(player.yaw) * Math.cos(player.pitch);
 
-    window.resetGameSave = function() {
-      if (confirm('Tüm Moon Sweepers ilerlemeniz sıfırlanacak. Emin misiniz?')) {
-        localStorage.removeItem(saveKey);
-        location.reload();
-      }
-    };
+      let sweepPointX = player.x + forwardX * reach;
+      let sweepPointZ = player.z + forwardZ * reach;
 
-    // UI Updates
-    function updateUI() {
-      document.getElementById('statCredits').textContent = `${economy.credits.toLocaleString()} LC`;
-      document.getElementById('statBackpackText').textContent = `${player.backpackDust} / ${player.getCapacity()} kg`;
-      
-      const fillPct = Math.min(100, (player.backpackDust / player.getCapacity()) * 100);
-      document.getElementById('statBackpackBar').style.width = `${fillPct}%`;
-      document.getElementById('statBackpackBar').className = fillPct >= 95 ? 'h-full bg-red-400 rounded-full' : 'h-full bg-cyan-400 rounded-full';
+      for (let p of dustPatches) {
+        if (p.mass <= 0) continue;
+        const dx = p.x - sweepPointX;
+        const dz = p.z - sweepPointZ;
+        const dist = Math.sqrt(dx * dx + dz * dz);
 
-      document.getElementById('statToolIcon').textContent = player.tool.icon;
-      document.getElementById('statToolName').textContent = player.tool.displayName;
+        if (dist <= p.radius + 1.2) {
+          const space = maxBackpackKg - backpackKg;
+          const gather = Math.min(amountKg, p.mass, space);
+          p.mass -= gather;
+          backpackKg += gather;
 
-      const cleanPct = world.getCleanlinessPercentage();
-      document.getElementById('statCleanPercent').textContent = `%${cleanPct}`;
-      document.getElementById('statCleanBar').style.width = `${cleanPct}%`;
-
-      document.getElementById('fullAlert').classList.toggle('hidden', !player.isBackpackFull());
-
-      renderShopItems();
-    }
-
-    function renderShopItems() {
-      // 1. Tool Upgrades List
-      const toolsContainer = document.getElementById('toolsList');
-      toolsContainer.innerHTML = TOOL_TIERS.map(tool => {
-        const isCurrent = player.currentToolId === tool.id;
-        const canBuy = economy.credits >= tool.cost && !isCurrent;
-        const isOwned = TOOL_TIERS.findIndex(t => t.id === player.currentToolId) >= TOOL_TIERS.findIndex(t => t.id === tool.id);
-
-        return `
-          <div class="p-3 rounded-xl bg-dark-900 border ${isCurrent ? 'border-cyan-400 bg-cyan-950/20' : 'border-white/5'} flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">${tool.icon}</span>
-              <div>
-                <div class="text-xs font-bold text-white flex items-center gap-2">
-                  ${tool.displayName}
-                  ${isCurrent ? '<span class="text-[9px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/30">KUŞANILDI</span>' : ''}
-                </div>
-                <div class="text-[11px] text-slate-400">${tool.description} (Kapasite: ${tool.backpackCapacity} kg)</div>
-              </div>
-            </div>
-
-            <div>
-              ${isCurrent ? '<span class="text-xs text-slate-500 font-mono">Aktif</span>' : (
-                isOwned ? `<button onclick="equipTool('${tool.id}')" class="px-3 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 text-xs text-cyan-300">Kuşan</button>` :
-                `<button onclick="buyTool('${tool.id}')" class="px-3 py-1 rounded-lg ${canBuy ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm shadow-cyan-500/25' : 'bg-dark-800 text-slate-500 cursor-not-allowed'} text-xs font-mono font-bold">
-                  ${tool.cost} LC
-                </button>`
-              )}
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // 2. Automations List
-      const automationsContainer = document.getElementById('automationsList');
-      automationsContainer.innerHTML = AUTOMATION_UPGRADES.map(upgrade => {
-        const canBuy = economy.credits >= upgrade.cost;
-        let countText = '';
-        if (upgrade.id === 'CONVEYOR') countText = `(${economy.automation.conveyors} Adet)`;
-        if (upgrade.id === 'DRONE') countText = `(${economy.automation.drones} Adet)`;
-        if (upgrade.id === 'FILTER' && economy.automation.hasFilter) countText = `(Kuruldu)`;
-        if (upgrade.id === 'SOLAR' && economy.automation.hasSolar) countText = `(Kuruldu)`;
-
-        const isMaxed = (upgrade.id === 'FILTER' && economy.automation.hasFilter) || (upgrade.id === 'SOLAR' && economy.automation.hasSolar);
-
-        return `
-          <div class="p-3 rounded-xl bg-dark-900 border border-white/5 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">${upgrade.icon}</span>
-              <div>
-                <div class="text-xs font-bold text-white flex items-center gap-1.5">
-                  ${upgrade.displayName} <span class="text-[10px] text-amber-400 mono">${countText}</span>
-                </div>
-                <div class="text-[11px] text-slate-400">${upgrade.desc}</div>
-              </div>
-            </div>
-
-            <div>
-              ${isMaxed ? '<span class="text-xs text-emerald-400 font-mono">Maksimum</span>' : `
-                <button onclick="buyUpgrade('${upgrade.id}')" class="px-3 py-1 rounded-lg ${canBuy ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-dark-800 text-slate-500 cursor-not-allowed'} text-xs font-mono font-bold">
-                  ${upgrade.cost} LC
-                </button>
-              `}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    window.buyTool = function(toolId) {
-      const tool = ToolSystem.getToolById(toolId);
-      if (economy.credits >= tool.cost) {
-        economy.credits -= tool.cost;
-        player.setTool(toolId);
-        audio.playUpgrade();
-        spawnFloatingText(player.x, player.y - 30, `Yeni Ekipman: ${tool.displayName}!`, '#00F0FF');
-        updateUI();
-        saveGame();
-      }
-    };
-
-    window.equipTool = function(toolId) {
-      player.setTool(toolId);
-      audio.playSweep();
-      updateUI();
-    };
-
-    window.buyUpgrade = function(upgradeId) {
-      const res = economy.buyUpgrade(upgradeId);
-      if (res.success) {
-        audio.playUpgrade();
-        spawnFloatingText(player.x, player.y - 30, `Yükseltildi: ${res.upgrade.displayName}!`, '#FFD700');
-        updateUI();
-        saveGame();
-      }
-    };
-
-    function spawnFloatingText(x, y, text, color = '#FFFFFF') {
-      floatingTexts.push({ x, y, text, color, life: 1.0 });
-    }
-
-    // Auto passive tick every 1 sec
-    setInterval(() => {
-      const passive = economy.calculatePassiveDust(1);
-      if (passive > 0) {
-        economy.credits += Math.round(passive * 5);
-        updateUI();
-      }
-    }, 1000);
-
-    // Auto save every 6 sec
-    setInterval(saveGame, 6000);
-
-    // Game loop
-    let lastTime = performance.now();
-
-    function gameLoop(now) {
-      const dt = (now - lastTime) / 1000;
-      lastTime = now;
-
-      // 1. Update Player Movement
-      player.update(keys, { width: canvas.width, height: canvas.height });
-
-      // 2. Handle Sweeping
-      const wantsSweep = keys['Space'] || isSweepingMouse;
-      if (wantsSweep) {
-        const sweepRes = player.sweep(world);
-        if (sweepRes && sweepRes.collectedDust > 0) {
-          if (player.tool.isContinuousSuction) {
-            audio.playVacuum();
-          } else {
-            audio.playSweep();
+          if (p.mass <= 0 && Math.random() < 0.2) {
+            credits += 45;
           }
-          updateUI();
+          break;
         }
       }
+      updateHUD();
+    }
 
-      // 3. Handle Depot Dumping
-      if (world.isPlayerInDepot(player.x, player.y) && player.backpackDust > 0) {
-        const dumped = player.emptyBackpack();
-        const sellResult = economy.sellInventory(dumped);
-        audio.playDeposit();
-        spawnFloatingText(world.depot.x, world.depot.y - 50, `+${sellResult.payout} LC Satıldı!`, '#34D399');
-        updateUI();
-        saveGame();
+    function tryDepotUnload() {
+      const dx = player.x - DEPOT.x;
+      const dz = player.z - DEPOT.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist <= DEPOT.radius && backpackKg > 0) {
+        const earned = Math.round(backpackKg * 2.5);
+        credits += earned;
+        backpackKg = 0;
+        audio.playCoinChime();
+        updateHUD();
+      }
+    }
+
+    function toggleShop() {
+      isShopOpen = !isShopOpen;
+      document.getElementById('shop-modal').style.display = isShopOpen ? 'flex' : 'none';
+      if (isShopOpen) {
+        renderShop();
+      }
+    }
+
+    document.getElementById('shop-close-btn').addEventListener('click', toggleShop);
+
+    function renderShop() {
+      const list = document.getElementById('shop-items-list');
+      list.innerHTML = '';
+
+      UPGRADES.forEach(u => {
+        const isOwned = !!purchasedUpgrades[u.id];
+        const card = document.createElement('div');
+        card.className = 'shop-card';
+
+        card.innerHTML = `
+          <div class="shop-card-info">
+            <h4>${u.title}</h4>
+            <p>${u.desc}</p>
+          </div>
+          <div class="shop-card-action">
+            <span class="price-tag">${isOwned ? '' : `LC $${u.cost}`}</span>
+            ${isOwned
+              ? '<span class="owned-tag">OWNED</span>'
+              : `<button class="buy-btn" data-id="${u.id}" ${credits < u.cost ? 'disabled' : ''}>Upgrade</button>`
+            }
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      list.querySelectorAll('.buy-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.target.getAttribute('data-id');
+          buyUpgrade(id);
+        });
+      });
+    }
+
+    function buyUpgrade(id) {
+      const u = UPGRADES.find(x => x.id === id);
+      if (!u || credits < u.cost) return;
+
+      credits -= u.cost;
+      purchasedUpgrades[u.id] = true;
+      audio.playCoinChime();
+
+      if (u.type === 'tool') {
+        if (!unlockedTools.includes(u.index)) unlockedTools.push(u.index);
+        activeToolIndex = u.index;
+      } else if (u.type === 'backpack') {
+        maxBackpackKg += u.value;
+      } else if (u.type === 'fuel') {
+        player.maxFuel += u.value;
+        player.fuel = player.maxFuel;
+      } else if (u.type === 'automation') {
+        passiveRates.conveyor += u.rate;
+      } else if (u.type === 'drone') {
+        passiveRates.drone += u.rate;
       }
 
-      // 4. Render Canvas
-      render();
+      renderShop();
+      updateHUD();
+    }
+
+    function updateHUD() {
+      document.getElementById('credits-counter').innerText = `LC $${credits.toLocaleString()}`;
+      document.getElementById('backpack-text').innerText = `${backpackKg.toFixed(1)} / ${maxBackpackKg.toFixed(1)} kg`;
+      const ratio = Math.min(1, backpackKg / maxBackpackKg);
+      document.getElementById('backpack-bar').style.width = `${ratio * 100}%`;
+
+      document.getElementById('fuel-text').innerText = `${Math.round(player.fuel)}%`;
+      document.getElementById('fuel-bar').style.width = `${(player.fuel / player.maxFuel) * 100}%`;
+
+      const tool = TOOLS[activeToolIndex];
+      document.getElementById('active-tool-display').innerText = `Active Tool: ${tool.name} [Tier ${tool.tier}]`;
+
+      const dist = Math.sqrt((player.x - DEPOT.x) ** 2 + (player.z - DEPOT.z) ** 2);
+      const promptEl = document.getElementById('interact-prompt');
+      if (dist <= DEPOT.radius && backpackKg > 0) {
+        promptEl.style.display = 'block';
+      } else {
+        promptEl.style.display = 'none';
+      }
+    }
+
+    // --- Main Game Loop (60 FPS 3D Perspective Projection Engine) ---
+    let lastTime = performance.now();
+    let droneAngle = 0;
+
+    function gameLoop(time) {
+      const dt = Math.min((time - lastTime) / 1000, 0.1);
+      lastTime = time;
+
+      if (!isShopOpen) {
+        updatePhysics(dt);
+      }
+      render3D();
 
       requestAnimationFrame(gameLoop);
     }
 
-    function render() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function updatePhysics(dt) {
+      let moveX = 0, moveZ = 0;
+      if (keys['KeyW'] || keys['ArrowUp']) moveZ += 1;
+      if (keys['KeyS'] || keys['ArrowDown']) moveZ -= 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
 
-      // A. Deep Space Background
-      ctx.fillStyle = '#050814';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Distant Stars
-      ctx.fillStyle = '#FFFFFF';
-      for (let i = 0; i < 40; i++) {
-        const sx = (i * 127) % canvas.width;
-        const sy = (i * 83) % canvas.height;
-        ctx.fillRect(sx, sy, 1.5, 1.5);
+      const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
+      if (len > 0) {
+        moveX /= len;
+        moveZ /= len;
       }
 
-      // Distant Blue Earth in corner
-      ctx.beginPath();
-      ctx.arc(canvas.width - 70, 70, 36, 0, Math.PI * 2);
-      ctx.fillStyle = '#0284C7';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(canvas.width - 64, 64, 30, 0, Math.PI * 2);
-      ctx.fillStyle = '#38BDF8';
-      ctx.fill();
+      const sinYaw = Math.sin(player.yaw);
+      const cosYaw = Math.cos(player.yaw);
+      const worldMoveX = moveX * cosYaw + moveZ * sinYaw;
+      const worldMoveZ = -moveX * sinYaw + moveZ * cosYaw;
 
-      // B. Lunar Surface & Craters
-      ctx.fillStyle = '#0E172E';
-      ctx.fillRect(40, 40, canvas.width - 80, canvas.height - 80);
+      player.vx = worldMoveX * player.speed;
+      player.vz = worldMoveZ * player.speed;
 
-      // Draw Craters
-      for (const c of world.craters) {
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#0A1020';
-        ctx.fill();
-        ctx.strokeStyle = '#1E293B';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-      }
+      const lunarGravity = -1.62 * 3.5;
 
-      // C. Central Depot Airlock & Hopper Zone
-      const dp = world.depot;
-      ctx.beginPath();
-      ctx.arc(dp.x, dp.y, dp.radius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.08)';
-      ctx.fill();
-      ctx.strokeStyle = '#F59E0B';
-      ctx.setLineDash([6, 6]);
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Depot Station Building
-      ctx.fillStyle = '#1E293B';
-      ctx.fillRect(dp.x - 45, dp.y - 45, 90, 90);
-      ctx.strokeStyle = '#00F0FF';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(dp.x - 45, dp.y - 45, 90, 90);
-
-      // Hopper Hatch
-      ctx.fillStyle = '#0A1224';
-      ctx.beginPath();
-      ctx.arc(dp.x, dp.y, 22, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#FFD700';
-      ctx.font = '10px JetBrains Mono';
-      ctx.textAlign = 'center';
-      ctx.fillText('LSD DEPO', dp.x, dp.y - 52);
-      ctx.fillText('TOZ BOŞALT', dp.x, dp.y + 6);
-
-      // D. Draw Conveyor Belt if purchased
-      if (economy.automation.conveyors > 0) {
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.moveTo(dp.x + 45, dp.y);
-        ctx.lineTo(dp.x + 180, dp.y);
-        ctx.stroke();
-        // Moving dashed belt line
-        ctx.strokeStyle = '#00F0FF';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([4, 6]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // E. Draw Dust Particles
-      for (const p of world.dustParticles) {
-        if (p.cleaned) continue;
-
-        ctx.fillStyle = p.density > 1 ? '#94A3B8' : '#64748B';
-        const rad = 2 + p.density * 1.5;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // F. Draw Rare Minerals Discovered
-      for (const m of world.rareMinerals) {
-        if (!m.discovered) continue;
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(MINERAL_VALUES[m.type].icon, m.x, m.y);
-      }
-
-      // G. Draw Auto Cleaning Drones Hovering
-      if (economy.automation.drones > 0) {
-        const timeSec = performance.now() / 1000;
-        for (let d = 0; d < economy.automation.drones; d++) {
-          const droneX = 400 + Math.cos(timeSec + d * 2) * 220;
-          const droneY = 300 + Math.sin(timeSec * 1.2 + d * 2) * 150;
-          ctx.font = '16px sans-serif';
-          ctx.fillText('🤖', droneX, droneY);
-          // Drone vacuum beam
-          ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(droneX, droneY + 5);
-          ctx.lineTo(droneX, droneY + 25);
-          ctx.stroke();
+      if (player.isGrounded) {
+        if (keys['Space']) {
+          player.vy = 6.2;
+          player.isGrounded = false;
         }
-      }
-
-      // H. Draw Player (Astronaut)
-      ctx.save();
-      ctx.translate(player.x, player.y);
-
-      // Low gravity floating hover bobbing
-      const bob = Math.sin(performance.now() / 250) * 2.5;
-
-      // Sweep radius indicator ring when sweeping
-      if (keys['Space'] || isSweepingMouse) {
-        ctx.beginPath();
-        ctx.arc(0, bob, player.tool.sweepRadius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 240, 255, 0.12)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-
-      // Astronaut Body (White Spacesuit)
-      ctx.fillStyle = '#E2E8F0';
-      ctx.beginPath();
-      ctx.arc(0, -6 + bob, 14, 0, Math.PI * 2); // Helmet
-      ctx.fill();
-
-      // Golden Visor
-      ctx.fillStyle = '#FFB800';
-      ctx.beginPath();
-      ctx.arc(4, -6 + bob, 7, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Backpack
-      ctx.fillStyle = player.isBackpackFull() ? '#EF4444' : '#0284C7';
-      ctx.fillRect(-14, -12 + bob, 6, 16);
-
-      // Active Tool Visual
-      ctx.font = '16px sans-serif';
-      ctx.fillText(player.tool.icon, 14, 2 + bob);
-
-      ctx.restore();
-
-      // I. Render Floating Popups (+LC)
-      for (let i = floatingTexts.length - 1; i >= 0; i--) {
-        const ft = floatingTexts[i];
-        ft.y -= 0.8;
-        ft.life -= 0.02;
-
-        if (ft.life <= 0) {
-          floatingTexts.splice(i, 1);
+        if (player.fuel < player.maxFuel) {
+          player.fuel = Math.min(player.maxFuel, player.fuel + 20 * dt);
+        }
+      } else {
+        const boosting = (isRightMouseDown || keys['ShiftLeft'] || keys['ShiftRight'] || (keys['Space'] && player.vy < 0)) && player.fuel > 0;
+        if (boosting) {
+          player.fuel = Math.max(0, player.fuel - 35 * dt);
+          player.vy += 12.0 * dt;
+          audio.playThruster();
         } else {
-          ctx.font = 'bold 12px JetBrains Mono';
-          ctx.fillStyle = ft.color;
-          ctx.globalAlpha = Math.max(0, ft.life);
-          ctx.textAlign = 'center';
-          ctx.fillText(ft.text, ft.x, ft.y);
-          ctx.globalAlpha = 1.0;
+          player.vy += lunarGravity * dt;
         }
       }
+
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+      player.z += player.vz * dt;
+
+      if (player.y <= 1.4) {
+        player.y = 1.4;
+        player.vy = 0;
+        player.isGrounded = true;
+      }
+
+      const tool = TOOLS[activeToolIndex];
+      if (isMouseDown && tool.mode === 'hold') {
+        performSweep(tool.power * dt, tool.range);
+      }
+
+      droneAngle += dt * 0.8;
+      const passiveKg = (passiveRates.conveyor + passiveRates.drone) * dt;
+      if (passiveKg > 0) {
+        credits += Math.round(passiveKg * 2.5);
+      }
+
+      if (player.sweepAnim > 0) {
+        player.sweepAnim = Math.max(0, player.sweepAnim - dt * 4.0);
+      }
+
+      updateHUD();
     }
 
-    // Start UI & loop
-    updateUI();
+    // --- 3D Projection Engine ---
+    function render3D() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const fov = 420;
+
+      ctx.fillStyle = '#03050B';
+      ctx.fillRect(0, 0, w, h);
+
+      // Starfield
+      stars.forEach(s => {
+        let sx = s.x - player.x;
+        let sy = s.y - player.y;
+        let sz = s.z - player.z;
+
+        const rx = sx * Math.cos(-player.yaw) - sz * Math.sin(-player.yaw);
+        const rz = sx * Math.sin(-player.yaw) + sz * Math.cos(-player.yaw);
+        const ry = sy * Math.cos(player.pitch) - rz * Math.sin(player.pitch);
+        const finalZ = sy * Math.sin(player.pitch) + rz * Math.cos(player.pitch);
+
+        if (finalZ > 1) {
+          const px = w / 2 + (rx / finalZ) * fov;
+          const py = h / 2 - (ry / finalZ) * fov;
+          if (px >= 0 && px <= w && py >= 0 && py <= h) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+            ctx.fillRect(px, py, s.size, s.size);
+          }
+        }
+      });
+
+      // Horizon Line & Ground Mesh
+      const horizonY = h / 2 + Math.tan(player.pitch) * fov;
+      const grad = ctx.createLinearGradient(0, horizonY, 0, h);
+      grad.addColorStop(0, '#11141C');
+      grad.addColorStop(1, '#080A10');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, horizonY, w, h - horizonY);
+
+      // Objects
+      const renderList = [];
+
+      renderList.push({
+        type: 'depot',
+        x: DEPOT.x, y: 0, z: DEPOT.z,
+        radius: DEPOT.radius
+      });
+
+      dustPatches.forEach(p => {
+        if (p.mass > 0) {
+          renderList.push({
+            type: 'dust',
+            x: p.x, y: 0, z: p.z,
+            radius: p.radius * (0.3 + 0.7 * (p.mass / p.maxMass)),
+            mass: p.mass
+          });
+        }
+      });
+
+      boulders.forEach(b => {
+        renderList.push({
+          type: 'boulder',
+          x: b.x, y: b.size * 0.5, z: b.z,
+          size: b.size
+        });
+      });
+
+      if (passiveRates.drone > 0) {
+        renderList.push({
+          type: 'drone',
+          x: Math.cos(droneAngle) * 14,
+          y: 3.5,
+          z: Math.sin(droneAngle) * 14,
+          size: 1.2
+        });
+      }
+
+      const projected = [];
+
+      renderList.forEach(obj => {
+        const dx = obj.x - player.x;
+        const dy = obj.y - player.y;
+        const dz = obj.z - player.z;
+
+        const rx = dx * Math.cos(-player.yaw) - dz * Math.sin(-player.yaw);
+        const rz = dx * Math.sin(-player.yaw) + dz * Math.cos(-player.yaw);
+        const ry = dy * Math.cos(player.pitch) - rz * Math.sin(player.pitch);
+        const finalZ = dy * Math.sin(player.pitch) + rz * Math.cos(player.pitch);
+
+        if (finalZ > 0.5) {
+          projected.push({
+            obj,
+            screenX: w / 2 + (rx / finalZ) * fov,
+            screenY: h / 2 - (ry / finalZ) * fov,
+            depth: finalZ,
+            scale: fov / finalZ
+          });
+        }
+      });
+
+      projected.sort((a, b) => b.depth - a.depth);
+
+      projected.forEach(item => {
+        const { obj, screenX, screenY, scale } = item;
+
+        if (obj.type === 'depot') {
+          const r = obj.radius * scale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY, r, r * 0.45, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#EAB308';
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#00F0FF';
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(screenX, screenY - 25 * (scale / 40), 8 * (scale / 40), 0, Math.PI * 2);
+          ctx.fillStyle = '#00F0FF';
+          ctx.shadowColor = '#00F0FF';
+          ctx.shadowBlur = 20;
+          ctx.fill();
+          ctx.restore();
+        }
+        else if (obj.type === 'dust') {
+          const r = obj.radius * scale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(screenX, screenY, r, r * 0.35, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#2A2E3B';
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#38BDF8';
+          ctx.stroke();
+          ctx.restore();
+        }
+        else if (obj.type === 'boulder') {
+          const s = obj.size * scale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, s * 0.6, 0, Math.PI * 2);
+          ctx.fillStyle = '#475569';
+          ctx.fill();
+          ctx.restore();
+        }
+        else if (obj.type === 'drone') {
+          const s = obj.size * scale;
+          ctx.save();
+          ctx.fillStyle = '#00F0FF';
+          ctx.shadowColor = '#00F0FF';
+          ctx.shadowBlur = 15;
+          ctx.fillRect(screenX - s * 0.5, screenY - s * 0.2, s, s * 0.4);
+          ctx.restore();
+        }
+      });
+
+      renderFirstPersonTool(w, h);
+    }
+
+    function renderFirstPersonTool(w, h) {
+      const tool = TOOLS[activeToolIndex];
+      const animOffset = Math.sin(player.sweepAnim * Math.PI) * 28;
+
+      ctx.save();
+      const originX = w - 180 + animOffset * 0.5;
+      const originY = h - 60 - animOffset;
+
+      ctx.translate(originX, originY);
+      ctx.rotate(-0.35 + (player.sweepAnim * 0.2));
+
+      ctx.fillStyle = '#1E293B';
+      ctx.fillRect(-15, -160, 30, 200);
+
+      ctx.fillStyle = tool.color;
+      ctx.shadowColor = tool.color;
+      ctx.shadowBlur = 12;
+
+      if (tool.id === 'toothbrush') {
+        ctx.fillRect(-18, -210, 36, 50);
+        ctx.fillStyle = '#FFFFFF';
+        for (let b = 0; b < 6; b++) {
+          ctx.fillRect(-15 + b * 5, -225, 3, 16);
+        }
+      } else if (tool.id === 'vacuum') {
+        ctx.beginPath();
+        ctx.moveTo(-35, -230);
+        ctx.lineTo(35, -230);
+        ctx.lineTo(20, -170);
+        ctx.lineTo(-20, -170);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillRect(-45, -210, 90, 50);
+      }
+
+      ctx.restore();
+    }
+
     requestAnimationFrame(gameLoop);
   </script>
 </body>
