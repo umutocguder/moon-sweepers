@@ -1,3 +1,8 @@
+/*
+ * Created by 11Hopem
+ * Copyright (c) 2026 11Hopem. All rights reserved.
+ */
+
 using System;
 using UnityEngine;
 
@@ -5,8 +10,8 @@ namespace ElevenHopem.MoonSweepers.Tools
 {
     public enum ToolMode
     {
-        ClickScrub,     // Toothbrush, Broom (tap to scrub)
-        ContinuousHold  // Cyclone Vacuum, Electro Sweeper, Buggy (hold left click)
+        ClickScrub,
+        ContinuousHold
     }
 
     [Serializable]
@@ -15,9 +20,9 @@ namespace ElevenHopem.MoonSweepers.Tools
         public string toolName;
         public int tier;
         public ToolMode mode;
-        public float sweepPowerKg;      // kg cleaned per hit or per second
-        public float sweepRangeMeters;  // distance reach
-        public float sweepRadiusMeters; // radius around hit point
+        public float sweepPowerKg;
+        public float sweepRangeMeters;
+        public float sweepRadiusMeters;
         public float useCooldownSeconds;
         public long unlockCostCredits;
         public Color toolVisualColor;

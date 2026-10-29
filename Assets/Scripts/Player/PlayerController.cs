@@ -1,3 +1,8 @@
+/*
+ * Created by 11Hopem
+ * Copyright (c) 2026 11Hopem. All rights reserved.
+ */
+
 using UnityEngine;
 using ElevenHopem.MoonSweepers.Core;
 
@@ -6,33 +11,40 @@ namespace ElevenHopem.MoonSweepers.Player
     [RequireComponent(typeof(CharacterController))]
     public class PlayerController : MonoBehaviour
     {
-        [Header("Movement Dynamics")]
-        [SerializeField] private float walkSpeed = 6.0f;
-        [SerializeField] private float runSpeed = 10.0f;
-        [SerializeField] private float lowGravityAcceleration = 14.0f;
-        [SerializeField] private float groundDrag = 4.0f;
-        [SerializeField] private float airDrag = 0.8f;
-
-        [Header("Lunar Jump & Jetpack")]
-        [SerializeField] private float jumpForce = 5.5f; // Floaty high jump under lunar g
-        [SerializeField] private float jetpackThrust = 7.0f;
+        [SerializeField] private float walkSpeed = 7.4f;
+        [SerializeField] private float runSpeed = 12.2f;
+        [SerializeField] private float groundAccel = 46.0f;
+        [SerializeField] private float airAccel = 12.0f;
+        [SerializeField] private float jumpVelocity = 4.9f;
+        [SerializeField] private float playerGravityScale = 1.95f;
+        [SerializeField] private float jetpackThrust = 9.2f;
         [SerializeField] private float maxFuel = 100f;
-        [SerializeField] private float fuelBurnRate = 25f;
-        [SerializeField] private float fuelRechargeRate = 18f;
-
-        [Header("Camera & Orientation")]
+        [SerializeField] private float fuelBurnRate = 24f;
+        [SerializeField] private float fuelRechargeRate = 30f;
         [SerializeField] private Camera playerCamera;
-        [SerializeField] private float mouseSensitivity = 2.0f;
-        [SerializeField] private float maxLookAngle = 85.0f;
+        [SerializeField] private float mouseSensitivity = 2.2f;
+        [SerializeField] private float maxLookAngle = 86.0f;
 
         private CharacterController characterController;
-        private Vector3 currentVelocity;
-        private float cameraPitch = 0.0f;
+        private Vector3 horizontalVelocity;
+        private float verticalVelocity;
+        private float cameraPitch = 8.0f;
         private float currentFuel;
+        private float coyoteTimer;
+        private float jumpBufferTimer;
+        private float walkCycleTime;
+        private Vector3 baseCameraLocalPos = new Vector3(0f, 0.72f, 0.06f);
+        private float baseFov = 68f;
+        private float vehicleSpeedMultiplier = 1.0f;
+        private bool isBoostingNow;
 
         public float CurrentFuel => currentFuel;
         public float MaxFuel => maxFuel;
-        public bool IsGrounded => characterController.isGrounded;
+        public float MouseSensitivity => mouseSensitivity;
+        public bool IsGrounded => characterController != null && characterController.isGrounded;
+        public bool IsBoosting => isBoostingNow;
+        public Camera PlayerCamera => playerCamera;
+        public float PlanarSpeed => horizontalVelocity.magnitude;
 
         private void Awake()
         {
@@ -44,111 +56,220 @@ namespace ElevenHopem.MoonSweepers.Player
                 playerCamera = GetComponentInChildren<Camera>();
             }
 
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
-
-        private void Update()
-        {
-            if (GameManager.Instance != null && (GameManager.Instance.IsGamePaused || GameManager.Instance.IsShopOpen))
+            if (playerCamera != null)
             {
-                return;
+                baseCameraLocalPos = playerCamera.transform.localPosition;
+                playerCamera.fieldOfView = baseFov;
+                playerCamera.nearClipPlane = 0.06f;
+                playerCamera.farClipPlane = 900f;
             }
-
-            HandleMouseLook();
-            HandleMovement();
-            HandleJetpackAndGravity();
         }
 
-        private void HandleMouseLook()
+        private void Start()
         {
-            float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
-            float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
-
-            // Yaw: rotate astronaut body
-            transform.Rotate(Vector3.up * mouseX);
-
-            // Pitch: rotate camera
-            cameraPitch -= mouseY;
-            cameraPitch = Mathf.Clamp(cameraPitch, -maxLookAngle, maxLookAngle);
-
             if (playerCamera != null)
             {
                 playerCamera.transform.localRotation = Quaternion.Euler(cameraPitch, 0f, 0f);
             }
         }
 
-        private void HandleMovement()
+        private void Update()
         {
-            float horizontal = Input.GetAxisRaw("Horizontal");
-            float vertical = Input.GetAxisRaw("Vertical");
+            if (GameManager.Instance != null && (GameManager.Instance.IsGamePaused || GameManager.Instance.IsShopOpen))
+            {
+                if (isBoostingNow)
+                {
+                    isBoostingNow = false;
+                    AudioManager.Instance?.SetThrusterActive(false);
+                }
+                return;
+            }
 
-            Vector3 inputDirection = (transform.forward * vertical + transform.right * horizontal).normalized;
+            HandleSensitivityHotkeys();
 
-            bool isRunning = Input.GetKey(KeyCode.LeftShift) && !Input.GetButton("Fire2");
-            float targetSpeed = isRunning ? runSpeed : walkSpeed;
+            if (Cursor.lockState == CursorLockMode.Locked)
+            {
+                HandleMouseLook();
+            }
 
-            Vector3 targetVelocity = inputDirection * targetSpeed;
-
-            // Low-gravity gliding interpolation
-            float drag = characterController.isGrounded ? groundDrag : airDrag;
-            currentVelocity.x = Mathf.Lerp(currentVelocity.x, targetVelocity.x, Time.deltaTime * lowGravityAcceleration * drag);
-            currentVelocity.z = Mathf.Lerp(currentVelocity.z, targetVelocity.z, Time.deltaTime * lowGravityAcceleration * drag);
+            HandleMovementAndPhysics();
+            AnimateCameraFeedback();
         }
 
-        private void HandleJetpackAndGravity()
+        private void HandleSensitivityHotkeys()
         {
-            float gravity = GameManager.Instance != null ? GameManager.Instance.LunarGravity : -1.62f;
-
-            if (characterController.isGrounded)
+            if (Input.GetKeyDown(KeyCode.LeftBracket))
             {
-                // Reset small downward force to keep grounded
-                if (currentVelocity.y < 0)
+                mouseSensitivity = Mathf.Max(0.5f, mouseSensitivity - 0.25f);
+                GameManager.Instance?.NotifyToast($"Mouse Sensitivity: {mouseSensitivity:F2}");
+            }
+            else if (Input.GetKeyDown(KeyCode.RightBracket))
+            {
+                mouseSensitivity = Mathf.Min(6.0f, mouseSensitivity + 0.25f);
+                GameManager.Instance?.NotifyToast($"Mouse Sensitivity: {mouseSensitivity:F2}");
+            }
+        }
+
+        private void HandleMouseLook()
+        {
+            float rawX = Input.GetAxisRaw("Mouse X");
+            float rawY = Input.GetAxisRaw("Mouse Y");
+
+            float yawDelta = rawX * mouseSensitivity;
+            float pitchDelta = rawY * mouseSensitivity;
+
+            transform.Rotate(0f, yawDelta, 0f, Space.Self);
+
+            cameraPitch = Mathf.Clamp(cameraPitch - pitchDelta, -maxLookAngle, maxLookAngle);
+            if (playerCamera != null)
+            {
+                playerCamera.transform.localRotation = Quaternion.Euler(cameraPitch, 0f, 0f);
+            }
+        }
+
+        private void HandleMovementAndPhysics()
+        {
+            float moveX = 0f;
+            float moveZ = 0f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveX += 1f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveX -= 1f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) moveZ += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) moveZ -= 1f;
+
+            Vector3 wishDir = transform.right * moveX + transform.forward * moveZ;
+            if (wishDir.sqrMagnitude > 1f)
+            {
+                wishDir.Normalize();
+            }
+
+            bool sprinting = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            float maxSpeed = (sprinting ? runSpeed : walkSpeed) * vehicleSpeedMultiplier;
+            Vector3 targetPlanar = wishDir * maxSpeed;
+
+            bool grounded = characterController.isGrounded;
+            if (grounded)
+            {
+                coyoteTimer = 0.18f;
+            }
+            else
+            {
+                coyoteTimer -= Time.deltaTime;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                jumpBufferTimer = 0.15f;
+            }
+            else
+            {
+                jumpBufferTimer -= Time.deltaTime;
+            }
+
+            float accel = grounded ? groundAccel : airAccel;
+            horizontalVelocity = Vector3.MoveTowards(horizontalVelocity, targetPlanar, accel * Time.deltaTime);
+
+            float lunarG = (GameManager.Instance != null ? GameManager.Instance.LunarGravity : -1.62f) * playerGravityScale;
+
+            if (coyoteTimer > 0f && jumpBufferTimer > 0f)
+            {
+                verticalVelocity = jumpVelocity;
+                coyoteTimer = 0f;
+                jumpBufferTimer = 0f;
+                grounded = false;
+                AudioManager.Instance?.PlayJump();
+            }
+
+            bool wantJetpack = Input.GetMouseButton(1) || (!grounded && Input.GetKey(KeyCode.Space) && verticalVelocity < 1.2f);
+
+            if (wantJetpack && currentFuel > 0.5f)
+            {
+                isBoostingNow = true;
+                currentFuel = Mathf.Max(0f, currentFuel - fuelBurnRate * Time.deltaTime);
+                verticalVelocity = Mathf.Min(7.8f, verticalVelocity + jetpackThrust * Time.deltaTime);
+                if (wishDir.sqrMagnitude > 0.01f)
                 {
-                    currentVelocity.y = -0.5f;
+                    horizontalVelocity = Vector3.MoveTowards(horizontalVelocity, wishDir * (maxSpeed * 1.22f), 18f * Time.deltaTime);
+                }
+                AudioManager.Instance?.SetThrusterActive(true);
+            }
+            else
+            {
+                if (isBoostingNow)
+                {
+                    isBoostingNow = false;
+                    AudioManager.Instance?.SetThrusterActive(false);
                 }
 
-                // Jump
-                if (Input.GetButtonDown("Jump"))
+                if (grounded && verticalVelocity < 0f)
                 {
-                    currentVelocity.y = jumpForce;
+                    verticalVelocity = -1.2f;
+                }
+                else
+                {
+                    verticalVelocity = Mathf.Max(-18f, verticalVelocity + lunarG * Time.deltaTime);
                 }
 
-                // Recharge fuel on ground
-                if (currentFuel < maxFuel)
+                if (grounded && currentFuel < maxFuel)
                 {
                     currentFuel = Mathf.Min(maxFuel, currentFuel + fuelRechargeRate * Time.deltaTime);
                 }
             }
+
+            Vector3 finalDisplacement = new Vector3(horizontalVelocity.x, verticalVelocity, horizontalVelocity.z) * Time.deltaTime;
+            characterController.Move(finalDisplacement);
+
+            Vector2 planarPos = new Vector2(transform.position.x, transform.position.z);
+            if (planarPos.magnitude > 106f)
+            {
+                Vector2 clamped = planarPos.normalized * 106f;
+                characterController.enabled = false;
+                transform.position = new Vector3(clamped.x, transform.position.y, clamped.y);
+                characterController.enabled = true;
+            }
+        }
+
+        private void AnimateCameraFeedback()
+        {
+            if (playerCamera == null) return;
+
+            float speed = horizontalVelocity.magnitude;
+            bool movingOnGround = characterController.isGrounded && speed > 0.4f;
+
+            if (movingOnGround)
+            {
+                walkCycleTime += Time.deltaTime * Mathf.Lerp(5.5f, 9.5f, Mathf.Clamp01(speed / 12f));
+                float bobY = Mathf.Sin(walkCycleTime * 2f) * 0.032f;
+                float bobX = Mathf.Cos(walkCycleTime) * 0.018f;
+                Vector3 targetPos = baseCameraLocalPos + new Vector3(bobX, bobY, 0f);
+                playerCamera.transform.localPosition = Vector3.Lerp(playerCamera.transform.localPosition, targetPos, Time.deltaTime * 12f);
+            }
             else
             {
-                // Jetpack boost (Right Mouse or Space held in air)
-                bool isBoosting = (Input.GetButton("Fire2") || (Input.GetButton("Jump") && currentVelocity.y <= 0)) && currentFuel > 0;
-
-                if (isBoosting)
-                {
-                    currentFuel = Mathf.Max(0f, currentFuel - fuelBurnRate * Time.deltaTime);
-                    currentVelocity.y += jetpackThrust * Time.deltaTime;
-
-                    if (AudioManager.Instance != null)
-                    {
-                        AudioManager.Instance.PlayThruster();
-                    }
-                }
-                else
-                {
-                    // Lunar gravitational pull
-                    currentVelocity.y += gravity * Time.deltaTime;
-                }
+                playerCamera.transform.localPosition = Vector3.Lerp(playerCamera.transform.localPosition, baseCameraLocalPos, Time.deltaTime * 8f);
             }
 
-            // Apply movement
-            characterController.Move(currentVelocity * Time.deltaTime);
+            float targetFov = baseFov;
+            if (isBoostingNow || speed > 9.5f)
+            {
+                targetFov = baseFov + 5.5f;
+            }
+            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFov, Time.deltaTime * 7f);
+        }
+
+        public void SetVehicleSpeedMultiplier(float multiplier)
+        {
+            vehicleSpeedMultiplier = Mathf.Clamp(multiplier, 1.0f, 2.2f);
         }
 
         public void UpgradeFuelCapacity(float addedCapacity)
         {
             maxFuel += addedCapacity;
+            currentFuel = maxFuel;
+        }
+
+        public void SetMaxFuel(float fuel)
+        {
+            maxFuel = Mathf.Max(100f, fuel);
             currentFuel = maxFuel;
         }
     }

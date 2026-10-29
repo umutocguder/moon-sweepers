@@ -1,4 +1,10 @@
+/*
+ * Created by 11Hopem
+ * Copyright (c) 2026 11Hopem. All rights reserved.
+ */
+
 #if UNITY_EDITOR
+using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -17,121 +23,224 @@ namespace ElevenHopem.EditorScripts
         [MenuItem("11Hopem/Setup Lunar World Scene (One-Click)")]
         public static void SetupLunarScene()
         {
-            Scene activeScene = EditorSceneManager.GetActiveScene();
-            Debug.Log($"[11Hopem] Constructing Lunar World Scene in: {activeScene.name}");
+            EditorSettings.serializationMode = SerializationMode.ForceText;
+            EnsureShaderTemplatesAndGraphicsSettings();
 
-            // 1. Setup Lighting (Harsh Lunar Sun & Space Sky)
-            GameObject sunLightObj = GameObject.Find("Directional Light") ?? new GameObject("Directional Light");
-            Light sunLight = sunLightObj.GetComponent<Light>() ?? sunLightObj.AddComponent<Light>();
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            GameObject sunLightObj = new GameObject("Directional Light (Sun)");
+            Light sunLight = sunLightObj.AddComponent<Light>();
             sunLight.type = LightType.Directional;
-            sunLight.color = new Color(1f, 0.98f, 0.92f);
-            sunLight.intensity = 1.35f;
-            sunLight.shadows = LightShadows.Hard;
-            sunLightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+            sunLight.color = new Color(1f, 0.97f, 0.92f);
+            sunLight.intensity = 1.45f;
+            sunLight.shadows = LightShadows.Soft;
+            sunLightObj.transform.rotation = Quaternion.Euler(26f, -36f, 0f);
 
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.08f, 0.08f, 0.12f); // Deep space shadow ambient
+            RenderSettings.skybox = null;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.11f, 0.14f, 0.22f);
+            RenderSettings.ambientEquatorColor = new Color(0.08f, 0.09f, 0.13f);
+            RenderSettings.ambientGroundColor = new Color(0.05f, 0.05f, 0.07f);
 
-            // 2. Setup Lunar Surface Ground
-            GameObject moonGround = GameObject.Find("LunarSurface") ?? GameObject.CreatePrimitive(PrimitiveType.Plane);
-            moonGround.name = "LunarSurface";
-            moonGround.transform.position = Vector3.zero;
-            moonGround.transform.localScale = new Vector3(20f, 1f, 20f); // 200m x 200m playfield
-            Renderer groundRend = moonGround.GetComponent<Renderer>();
-            if (groundRend != null)
-            {
-                Material moonMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-                moonMat.color = new Color(0.35f, 0.35f, 0.38f);
-                groundRend.material = moonMat;
-            }
+            GameObject coreSystems = new GameObject("CoreSystems");
+            coreSystems.AddComponent<GameManager>();
+            coreSystems.AddComponent<AudioManager>();
+            coreSystems.AddComponent<SaveManager>();
+            coreSystems.AddComponent<ShopManager>();
+            coreSystems.AddComponent<HUDController>();
+            coreSystems.AddComponent<ShopUIController>();
 
-            // 3. Setup Core Systems Container
-            GameObject coreSystems = GameObject.Find("CoreSystems") ?? new GameObject("CoreSystems");
-            if (!coreSystems.GetComponent<GameManager>()) coreSystems.AddComponent<GameManager>();
-            if (!coreSystems.GetComponent<AudioManager>()) coreSystems.AddComponent<AudioManager>();
-            if (!coreSystems.GetComponent<SaveManager>()) coreSystems.AddComponent<SaveManager>();
-            if (!coreSystems.GetComponent<ShopManager>()) coreSystems.AddComponent<ShopManager>();
-            if (!coreSystems.GetComponent<HUDController>()) coreSystems.AddComponent<HUDController>();
-            if (!coreSystems.GetComponent<ShopUIController>()) coreSystems.AddComponent<ShopUIController>();
-
-            // 4. Setup Depot Hopper Base
-            GameObject depotObj = GameObject.Find("DepotHopper") ?? GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            depotObj.name = "DepotHopper";
+            GameObject depotObj = new GameObject("DepotHopper");
             depotObj.tag = "Depot";
-            depotObj.transform.position = new Vector3(0f, 0.75f, 0f);
-            depotObj.transform.localScale = new Vector3(4f, 0.75f, 4f);
+            depotObj.transform.position = new Vector3(0f, 0f, 8.0f);
+            depotObj.AddComponent<DepotHopper>();
 
-            Renderer depotRend = depotObj.GetComponent<Renderer>();
-            if (depotRend != null)
-            {
-                Material depotMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-                depotMat.color = new Color(0.9f, 0.8f, 0.2f); // Industrial gold/yellow
-                depotRend.material = depotMat;
-            }
+            GameObject surfaceGenObj = new GameObject("SurfaceGenerator");
+            surfaceGenObj.AddComponent<LunarSurfaceGenerator>();
 
-            // Add Depot Beacon Light
-            GameObject beaconObj = new GameObject("BeaconLight");
-            beaconObj.transform.SetParent(depotObj.transform, false);
-            beaconObj.transform.localPosition = new Vector3(0f, 2.5f, 0f);
-            Light beaconLight = beaconObj.AddComponent<Light>();
-            beaconLight.type = LightType.Point;
-            beaconLight.color = Color.cyan;
-            beaconLight.range = 15f;
-            beaconLight.intensity = 2f;
-
-            if (!depotObj.GetComponent<DepotHopper>())
-            {
-                DepotHopper hopper = depotObj.AddComponent<DepotHopper>();
-            }
-
-            // 5. Setup Procedural Surface Generator
-            GameObject surfaceGenObj = GameObject.Find("SurfaceGenerator") ?? new GameObject("SurfaceGenerator");
-            LunarSurfaceGenerator gen = surfaceGenObj.GetComponent<LunarSurfaceGenerator>() ?? surfaceGenObj.AddComponent<LunarSurfaceGenerator>();
-
-            // 6. Setup Astronaut Player
-            GameObject playerObj = GameObject.Find("AstronautPlayer") ?? GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            playerObj.name = "AstronautPlayer";
+            GameObject playerObj = new GameObject("AstronautPlayer");
             playerObj.tag = "Player";
-            playerObj.transform.position = new Vector3(0f, 1.2f, -6f);
-            playerObj.transform.localScale = new Vector3(1f, 1.8f, 1f);
+            playerObj.transform.position = new Vector3(0f, 1.05f, -5.5f);
+            playerObj.transform.rotation = Quaternion.identity;
 
-            // Setup Character Controller
-            CharacterController cc = playerObj.GetComponent<CharacterController>() ?? playerObj.AddComponent<CharacterController>();
+            CharacterController cc = playerObj.AddComponent<CharacterController>();
             cc.height = 1.8f;
-            cc.radius = 0.45f;
-            cc.stepOffset = 0.35f;
+            cc.radius = 0.42f;
+            cc.stepOffset = 0.42f;
+            cc.slopeLimit = 52f;
 
-            // Setup Camera
-            Camera cam = playerObj.GetComponentInChildren<Camera>();
-            if (cam == null)
+            GameObject camObj = new GameObject("FirstPersonCamera");
+            camObj.tag = "MainCamera";
+            camObj.transform.SetParent(playerObj.transform, false);
+            camObj.transform.localPosition = new Vector3(0f, 0.72f, 0.06f);
+            Camera cam = camObj.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.006f, 0.009f, 0.018f, 1f);
+            cam.nearClipPlane = 0.06f;
+            cam.farClipPlane = 900f;
+            cam.fieldOfView = 68f;
+            camObj.AddComponent<AudioListener>();
+
+            GameObject thObj = new GameObject("ToolHolder");
+            thObj.transform.SetParent(camObj.transform, false);
+            thObj.transform.localPosition = Vector3.zero;
+
+            playerObj.AddComponent<PlayerInventory>();
+            playerObj.AddComponent<PlayerController>();
+            playerObj.AddComponent<ToolController>();
+
+            if (!Directory.Exists("Assets/Scenes"))
             {
-                GameObject camObj = new GameObject("FirstPersonCamera");
-                camObj.transform.SetParent(playerObj.transform, false);
-                camObj.transform.localPosition = new Vector3(0f, 0.7f, 0.2f);
-                cam = camObj.AddComponent<Camera>();
-                camObj.AddComponent<AudioListener>();
+                Directory.CreateDirectory("Assets/Scenes");
             }
 
-            // Setup Tool Holder
-            Transform toolHolder = playerObj.transform.Find("ToolHolder");
-            if (toolHolder == null)
+            string scenePath = "Assets/Scenes/MainLunarBase.unity";
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene, scenePath);
+
+            EditorBuildSettings.scenes = new EditorBuildSettingsScene[]
             {
-                GameObject thObj = new GameObject("ToolHolder");
-                thObj.transform.SetParent(cam.transform, false);
-                thObj.transform.localPosition = new Vector3(0.2f, -0.2f, 0.4f);
-                toolHolder = thObj.transform;
+                new EditorBuildSettingsScene(scenePath, true)
+            };
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[11Hopem] Lunar World Scene generated and saved to Assets/Scenes/MainLunarBase.unity");
+        }
+
+        private static void EnsureShaderTemplatesAndGraphicsSettings()
+        {
+            string resMatDir = "Assets/Resources/Materials";
+            if (!Directory.Exists(resMatDir))
+            {
+                Directory.CreateDirectory(resMatDir);
             }
 
-            // Attach Player Scripts
-            if (!playerObj.GetComponent<PlayerInventory>()) playerObj.AddComponent<PlayerInventory>();
-            if (!playerObj.GetComponent<PlayerController>()) playerObj.AddComponent<PlayerController>();
-            if (!playerObj.GetComponent<ToolController>()) playerObj.AddComponent<ToolController>();
+            Shader std = Shader.Find("Standard");
+            if (std != null)
+            {
+                Texture2D dummyBump = new Texture2D(4, 4, TextureFormat.RGBA32, false, true);
+                for (int y = 0; y < 4; y++)
+                {
+                    for (int x = 0; x < 4; x++)
+                    {
+                        dummyBump.SetPixel(x, y, new Color(1f, 0.5f, 1f, 0.5f));
+                    }
+                }
+                dummyBump.Apply();
+                string bumpPath = "Assets/Resources/Materials/DefaultFlatNormal.png";
+                File.WriteAllBytes(bumpPath, dummyBump.EncodeToPNG());
+                AssetDatabase.ImportAsset(bumpPath, ImportAssetOptions.ForceSynchronousImport);
 
-            // Save Scene
-            EditorSceneManager.MarkSceneDirty(activeScene);
-            EditorSceneManager.SaveScene(activeScene, "Assets/Scenes/MainLunarBase.unity");
+                Texture2D bumpAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(bumpPath);
 
-            Debug.Log("[11Hopem] Lunar World Scene successfully configured and saved to Assets/Scenes/MainLunarBase.unity!");
+                Material stdTemplate = new Material(std);
+                stdTemplate.name = "TemplateStandard";
+                stdTemplate.EnableKeyword("_NORMALMAP");
+                stdTemplate.SetTexture("_BumpMap", bumpAsset);
+                SaveOrReplaceMaterial(stdTemplate, $"{resMatDir}/TemplateStandard.mat");
+
+                Texture2D dummyWhite = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+                for (int y = 0; y < 4; y++)
+                {
+                    for (int x = 0; x < 4; x++)
+                    {
+                        dummyWhite.SetPixel(x, y, Color.white);
+                    }
+                }
+                dummyWhite.Apply();
+                string whitePath = "Assets/Resources/Materials/DefaultWhite.png";
+                File.WriteAllBytes(whitePath, dummyWhite.EncodeToPNG());
+                AssetDatabase.ImportAsset(whitePath, ImportAssetOptions.ForceSynchronousImport);
+                Texture2D whiteAsset = AssetDatabase.LoadAssetAtPath<Texture2D>(whitePath);
+
+                Material emiTemplate = new Material(std);
+                emiTemplate.name = "TemplateEmissive";
+                emiTemplate.EnableKeyword("_EMISSION");
+                emiTemplate.SetColor("_EmissionColor", Color.cyan);
+                emiTemplate.SetTexture("_EmissionMap", whiteAsset);
+                SaveOrReplaceMaterial(emiTemplate, $"{resMatDir}/TemplateEmissive.mat");
+
+                Material transTemplate = new Material(std);
+                transTemplate.name = "TemplateTransparent";
+                transTemplate.SetFloat("_Mode", 3f);
+                transTemplate.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                transTemplate.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                transTemplate.SetInt("_ZWrite", 0);
+                transTemplate.EnableKeyword("_ALPHAPREMULTIPLY_ON");
+                transTemplate.EnableKeyword("_EMISSION");
+                transTemplate.SetColor("_EmissionColor", Color.cyan);
+                transTemplate.renderQueue = 3000;
+                SaveOrReplaceMaterial(transTemplate, $"{resMatDir}/TemplateTransparent.mat");
+            }
+
+            Shader partShader = Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Sprites/Default");
+            if (partShader != null)
+            {
+                Material partMat = new Material(partShader);
+                partMat.name = "SoftParticle";
+                partMat.SetFloat("_Mode", 2f);
+                partMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                partMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                partMat.SetInt("_ZWrite", 0);
+                partMat.EnableKeyword("_ALPHABLEND_ON");
+                partMat.renderQueue = 3000;
+                SaveOrReplaceMaterial(partMat, $"{resMatDir}/SoftParticle.mat");
+            }
+
+            Object[] gfxAssets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (gfxAssets != null && gfxAssets.Length > 0)
+            {
+                SerializedObject gfxSo = new SerializedObject(gfxAssets[0]);
+                SerializedProperty alwaysShaders = gfxSo.FindProperty("m_AlwaysIncludedShaders");
+                if (alwaysShaders != null)
+                {
+                    string[] requiredShaders = new string[]
+                    {
+                        "Standard",
+                        "Particles/Standard Unlit",
+                        "Sprites/Default",
+                        "UI/Default",
+                        "Unlit/Color"
+                    };
+
+                    foreach (string sName in requiredShaders)
+                    {
+                        Shader sh = Shader.Find(sName);
+                        if (sh == null) continue;
+                        bool exists = false;
+                        for (int i = 0; i < alwaysShaders.arraySize; i++)
+                        {
+                            if (alwaysShaders.GetArrayElementAtIndex(i).objectReferenceValue == sh)
+                            {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists)
+                        {
+                            int idx = alwaysShaders.arraySize;
+                            alwaysShaders.InsertArrayElementAtIndex(idx);
+                            alwaysShaders.GetArrayElementAtIndex(idx).objectReferenceValue = sh;
+                        }
+                    }
+                    gfxSo.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+        }
+
+        private static void SaveOrReplaceMaterial(Material mat, string assetPath)
+        {
+            Material existing = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+            if (existing != null)
+            {
+                EditorUtility.CopySerialized(mat, existing);
+                EditorUtility.SetDirty(existing);
+            }
+            else
+            {
+                AssetDatabase.CreateAsset(mat, assetPath);
+            }
         }
     }
 }

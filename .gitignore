@@ -56,6 +56,9 @@ node_modules/
 data/backups/moon-save-*.json
 
 # AI Internal Context & Workflow Files (Local Only)
+.vscode/
+.clinerules
+.cursorrules
 AGENTS.md
 CLAUDE.md
 WORKLOG.md

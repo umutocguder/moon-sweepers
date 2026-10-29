@@ -14,7 +14,7 @@ function processDirectory(dirPath) {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
     for (const entry of entries) {
-        if (entry.name.endsWith('.meta')) continue;
+        if (entry.name.endsWith('.meta') || entry.name === '.DS_Store') continue;
 
         const fullPath = path.join(dirPath, entry.name);
         const metaPath = `${fullPath}.meta`;
@@ -28,8 +28,6 @@ function processDirectory(dirPath) {
                 metaContent = `fileFormatVersion: 2\nguid: ${guid}\nfolderAsset: yes\nDefaultImporter:\n  externalObjects: {}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n`;
             } else if (entry.name.endsWith('.cs')) {
                 metaContent = `fileFormatVersion: 2\nguid: ${guid}\nMonoImporter:\n  externalObjects: {}\n  serializedVersion: 2\n  defaultReferences: []\n  executionOrder: 0\n  icon: {instanceID: 0}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n`;
-            } else if (entry.name.endsWith('.unity')) {
-                metaContent = `fileFormatVersion: 2\nguid: 7c01b3a411hopem00000000000000001\nDefaultImporter:\n  externalObjects: {}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n`;
             } else {
                 metaContent = `fileFormatVersion: 2\nguid: ${guid}\nDefaultImporter:\n  externalObjects: {}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n`;
             }

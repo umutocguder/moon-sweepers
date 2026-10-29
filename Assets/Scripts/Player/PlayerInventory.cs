@@ -1,3 +1,8 @@
+/*
+ * Created by 11Hopem
+ * Copyright (c) 2026 11Hopem. All rights reserved.
+ */
+
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -21,17 +26,28 @@ namespace ElevenHopem.MoonSweepers.Player
 
     public class PlayerInventory : MonoBehaviour
     {
-        [Header("Regolith Dust Capacity")]
         [SerializeField] private float currentDustKg = 0f;
         [SerializeField] private float maxBackpackCapacityKg = 30f;
-
-        [Header("Rare Minerals")]
         [SerializeField] private List<MineralItem> collectedMinerals = new List<MineralItem>();
 
         public float CurrentDustKg => currentDustKg;
         public float MaxBackpackCapacityKg => maxBackpackCapacityKg;
-        public bool IsFull => currentDustKg >= maxBackpackCapacityKg;
-        public float FillRatio => Mathf.Clamp01(currentDustKg / maxBackpackCapacityKg);
+        public bool IsFull => currentDustKg >= maxBackpackCapacityKg - 0.01f;
+        public float FillRatio => maxBackpackCapacityKg > 0f ? Mathf.Clamp01(currentDustKg / maxBackpackCapacityKg) : 0f;
+        public IReadOnlyList<MineralItem> CollectedMinerals => collectedMinerals;
+
+        public int TotalMineralCount
+        {
+            get
+            {
+                int sum = 0;
+                for (int i = 0; i < collectedMinerals.Count; i++)
+                {
+                    sum += collectedMinerals[i].count;
+                }
+                return sum;
+            }
+        }
 
         public event Action<float, float> OnInventoryUpdated;
         public event Action<string, int> OnMineralCollected;
@@ -43,30 +59,29 @@ namespace ElevenHopem.MoonSweepers.Player
 
         public bool AddDust(float amountKg)
         {
-            if (amountKg <= 0 || IsFull) return false;
+            if (amountKg <= 0f || IsFull) return false;
 
             float availableSpace = maxBackpackCapacityKg - currentDustKg;
             float added = Mathf.Min(amountKg, availableSpace);
 
             currentDustKg += added;
             OnInventoryUpdated?.Invoke(currentDustKg, maxBackpackCapacityKg);
-
-            return added > 0;
+            return added > 0f;
         }
 
-        public void AddMineral(string name, int quantity, float multiplier)
+        public void AddMineral(string mineralName, int quantity, float multiplier)
         {
-            var existing = collectedMinerals.Find(m => m.mineralName == name);
+            var existing = collectedMinerals.Find(m => m.mineralName == mineralName);
             if (existing != null)
             {
                 existing.count += quantity;
             }
             else
             {
-                collectedMinerals.Add(new MineralItem(name, quantity, multiplier));
+                collectedMinerals.Add(new MineralItem(mineralName, quantity, multiplier));
             }
 
-            OnMineralCollected?.Invoke(name, quantity);
+            OnMineralCollected?.Invoke(mineralName, quantity);
         }
 
         public float UnloadAllDust()
@@ -87,6 +102,12 @@ namespace ElevenHopem.MoonSweepers.Player
         public void UpgradeCapacity(float addedKg)
         {
             maxBackpackCapacityKg += addedKg;
+            OnInventoryUpdated?.Invoke(currentDustKg, maxBackpackCapacityKg);
+        }
+
+        public void SetMaxCapacity(float capacityKg)
+        {
+            maxBackpackCapacityKg = Mathf.Max(30f, capacityKg);
             OnInventoryUpdated?.Invoke(currentDustKg, maxBackpackCapacityKg);
         }
     }

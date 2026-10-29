@@ -71,3 +71,19 @@ All architectural milestones, decisions, and feature developments are logged her
   - Created `tests/unityProject.test.js` validating all 16 C# scripts, scene YAML, ProjectSettings, brand links, and `.gitignore` security rules.
   - `npm test`: 10/10 automated tests passing (100% success).
   - Enforced Rule 6 (11Hopem brand link), Rule 9 (dev -> master branch policy), Rule 11 (Zero copyright infringement), and Rule 12 (Strict .gitignore secrets shield).
+
+---
+
+### 2026-10-29 14:20 - Authentic Unity 6 (`6000.0.85f1`) 3D Visuals, Controls & Standalone macOS `.app` Overhaul
+- **Task & Purpose:** User reported that the interim WebView wrapper looked cheap and had broken mouse/movement controls ("bok gibi olmuş düzeltmeye çalışsana çok dandik kontroller çok sıkıntılı görsellik çok kötü"). Replaced the entire interim wrapper with an authentic compiled **Unity 6 (`6000.0.85f1`) Apple Silicon macOS Standalone `.app`** with overhauled 3D graphics, PBR materials, procedural meshes, responsive raw FPS controls, and modern uGUI Canvas HUD.
+- **Key Decisions & Architecture:**
+  - Removed the legacy Swift `WKWebView` launcher (`launcher/`) and pointed `scripts/packageMacApp.sh` + `scripts/buildMac.js` exclusively to headless Unity 6 `MacBuildScript.PerformMacBuild`.
+  - Fixed invalid non-hex scene/meta GUIDs by programmatically generating `Assets/Scenes/MainLunarBase.unity` and pre-baked shader material templates (`Assets/Resources/Materials/`) inside `LunarSceneBuilder.cs` prior to `BuildPipeline.BuildPlayer`.
+  - Configured Linear color space (`m_ActiveColorSpace: 1`), 4x MSAA, Soft Shadows (`ShadowResolution.VeryHigh`), and `activeInputHandler: 2` across authentic Unity 6 `ProjectSettings/*.asset`.
+  - Added `LunarMaterialLibrary.cs` & `GameBootstrapper.cs` for procedural PBR regolith albedo/normal maps, organic 3D regolith mound meshes, faceted lunar boulders, Planet Earth equirectangular clouds/continents texture, and 9-sliced rounded UI sprites.
+  - Upgraded `LunarSurfaceGenerator.cs`, `RegolithDustPatch.cs`, and `DepotHopper.cs` with a 160x160 sculpted crater basin mesh, starry celestial sky + rotating 3D Planet Earth, geodesic Lunar Outpost Alpha habitat dome, and industrial Depot Hopper with counter-rotating crusher drums and silo.
+  - Upgraded `PlayerController.cs` and `ToolController.cs` with true OS cursor lock (`CursorLockMode.Locked`), raw 1:1 mouse look, snappy ground movement + coyote-time lunar jump + hydrazine jetpack, `SphereCast` target magnetism, suction dust motes flying into the nozzle, and multi-part 3D astronaut arm + 5 tiered 3D tools.
+  - Rebuilt `HUDController.cs` and `ShopUIController.cs` on modern `UnityEngine.UI` (`uGUI`) Canvas with dynamic target reticle, 1-5 hotbar, compass, 2x4 Hangar Upgrade Grid, and Pause menu.
+- **Verification:**
+  - `npm run build:mac`: Succeeded (`Builds/macOS/11HopemMoonSweepers.app`, ~106 MB native Metal binary, zero compiler/runtime errors).
+  - `npm test`: 10/10 unit & governance tests passing (100%).

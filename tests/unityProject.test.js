@@ -18,7 +18,8 @@ test('Unity Engine Setup: Verify ProjectSettings, Packages, and Editor configura
   const manifestPath = path.join(ROOT_DIR, 'Packages', 'manifest.json');
   assert.ok(fs.existsSync(manifestPath), 'Packages/manifest.json must exist');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  assert.ok(manifest.dependencies['com.unity.modules.core'], 'Core Unity module must be present');
+  assert.ok(manifest.dependencies['com.unity.ugui'], 'Unity uGUI package must be present');
+  assert.ok(manifest.dependencies['com.unity.modules.physics'], 'Unity Physics module must be present');
   assert.ok(manifest.dependencies['com.unity.inputsystem'], 'Input system must be present');
 
   const projectVersionPath = path.join(ROOT_DIR, 'ProjectSettings', 'ProjectVersion.txt');

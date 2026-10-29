@@ -5,6 +5,7 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - m_Enabled: 1
-    m_Path: Assets/Scenes/MainLunarBase.unity
-    m_Guid: 7c01b3a411hopem00000000000000001
+  - enabled: 1
+    path: Assets/Scenes/MainLunarBase.unity
+    guid: 7c01b3a411ee0e000000000000000001
+  m_configObjects: {}

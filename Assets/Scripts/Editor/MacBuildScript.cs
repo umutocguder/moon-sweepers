@@ -1,5 +1,9 @@
+/*
+ * Created by 11Hopem
+ * Copyright (c) 2026 11Hopem. All rights reserved.
+ */
+
 #if UNITY_EDITOR
-using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -12,6 +16,8 @@ namespace ElevenHopem.EditorScripts
         [MenuItem("11Hopem/Build/Build macOS Standalone App (.app)")]
         public static void PerformMacBuild()
         {
+            LunarSceneBuilder.SetupLunarScene();
+
             string buildPath = Path.Combine(Directory.GetCurrentDirectory(), "Builds", "macOS", "11HopemMoonSweepers.app");
             string buildDir = Path.GetDirectoryName(buildPath);
 
@@ -37,11 +43,18 @@ namespace ElevenHopem.EditorScripts
             if (summary.result == BuildResult.Succeeded)
             {
                 Debug.Log($"[11Hopem] macOS Build Succeeded! Size: {summary.totalSize} bytes at: {buildPath}");
-                EditorUtility.RevealInFinder(buildPath);
+                if (!Application.isBatchMode)
+                {
+                    EditorUtility.RevealInFinder(buildPath);
+                }
             }
-            else if (summary.result == BuildResult.Failed)
+            else
             {
                 Debug.LogError($"[11Hopem] macOS Build Failed with {summary.totalErrors} errors!");
+                if (Application.isBatchMode)
+                {
+                    EditorApplication.Exit(1);
+                }
             }
         }
     }
