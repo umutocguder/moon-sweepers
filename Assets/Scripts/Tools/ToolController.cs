@@ -237,7 +237,7 @@ namespace ElevenHopem.MoonSweepers.Tools
 
             Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
 
-            if (Physics.SphereCast(ray, 0.42f, out RaycastHit sphereHit, current.sweepRangeMeters))
+            if (Physics.SphereCast(ray, 0.42f, out RaycastHit sphereHit, current.sweepRangeMeters, ~0, QueryTriggerInteraction.Collide))
             {
                 RegolithDustPatch patch = sphereHit.collider.GetComponent<RegolithDustPatch>() ?? sphereHit.collider.GetComponentInParent<RegolithDustPatch>();
                 if (patch != null && !patch.IsFullyCleaned)
@@ -248,9 +248,9 @@ namespace ElevenHopem.MoonSweepers.Tools
                 }
             }
 
-            if (Physics.Raycast(ray, out RaycastHit groundHit, current.sweepRangeMeters))
+            if (Physics.Raycast(ray, out RaycastHit groundHit, current.sweepRangeMeters, ~0, QueryTriggerInteraction.Ignore))
             {
-                Collider[] nearby = Physics.OverlapSphere(groundHit.point, current.sweepRadiusMeters * 0.85f);
+                Collider[] nearby = Physics.OverlapSphere(groundHit.point, current.sweepRadiusMeters * 0.85f, ~0, QueryTriggerInteraction.Collide);
                 float bestDist = float.MaxValue;
                 for (int i = 0; i < nearby.Length; i++)
                 {
@@ -384,14 +384,14 @@ namespace ElevenHopem.MoonSweepers.Tools
             Vector3 centerPoint;
             bool foundSurface = false;
 
-            if (Physics.SphereCast(ray, 0.36f, out RaycastHit hit, range))
-            {
-                centerPoint = hit.point;
-                foundSurface = true;
-            }
-            else if (Physics.Raycast(ray, out RaycastHit rayHit, range))
+            if (Physics.Raycast(ray, out RaycastHit rayHit, range, ~0, QueryTriggerInteraction.Ignore))
             {
                 centerPoint = rayHit.point;
+                foundSurface = true;
+            }
+            else if (Physics.SphereCast(ray, 0.36f, out RaycastHit hit, range, ~0, QueryTriggerInteraction.Collide))
+            {
+                centerPoint = hit.point;
                 foundSurface = true;
             }
             else
@@ -399,7 +399,7 @@ namespace ElevenHopem.MoonSweepers.Tools
                 centerPoint = ray.GetPoint(range * 0.75f);
             }
 
-            Collider[] hits = Physics.OverlapSphere(centerPoint, radius);
+            Collider[] hits = Physics.OverlapSphere(centerPoint, radius, ~0, QueryTriggerInteraction.Collide);
             bool cleanedAny = false;
 
             for (int i = 0; i < hits.Length; i++)

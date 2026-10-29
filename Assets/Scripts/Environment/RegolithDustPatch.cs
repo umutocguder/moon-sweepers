@@ -49,6 +49,7 @@ namespace ElevenHopem.MoonSweepers.Environment
                 }
                 hitCollider = gameObject.AddComponent<SphereCollider>();
             }
+            hitCollider.isTrigger = true;
             hitCollider.radius = 1.05f;
             hitCollider.center = new Vector3(0f, 0.22f, 0f);
         }

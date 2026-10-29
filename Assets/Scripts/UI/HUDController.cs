@@ -203,7 +203,7 @@ namespace ElevenHopem.MoonSweepers.UI
                 "SPACE / RMB    Jump / Jetpack\n" +
                 "LEFT CLICK     Scrub / Vacuum\n" +
                 "1 - 5 / WHEEL  Switch Tool\n" +
-                "TAB            Upgrade Hangar\n" +
+                "TAB / H        Hangar / Base\n" +
                 "ESC / [ ]      Menu / Mouse Sens";
             Text ctrlText = CreateLabel("ControlsText", bottomRight, font, controlsCopy, 12, FontStyle.Bold, new Color(0.82f, 0.90f, 0.98f), TextAnchor.UpperLeft, new Vector2(16f, -13f), new Vector2(278f, 114f));
             ctrlText.lineSpacing = 1.18f;

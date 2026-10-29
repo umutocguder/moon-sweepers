@@ -119,6 +119,11 @@ namespace ElevenHopem.MoonSweepers.Environment
             return new Vector3(hL - hR, 2f * eps, hD - hU).normalized;
         }
 
+        private void Awake()
+        {
+            GenerateSurfaceFeatures();
+        }
+
         private void Start()
         {
             GenerateSurfaceFeatures();
@@ -160,8 +165,8 @@ namespace ElevenHopem.MoonSweepers.Environment
             terrainObj.transform.SetParent(transform, false);
             terrainObj.transform.position = Vector3.zero;
 
-            int grid = 160;
-            float worldSize = 230f;
+            int grid = 200;
+            float worldSize = 260f;
             float half = worldSize * 0.5f;
             int vertSide = grid + 1;
 
@@ -228,6 +233,7 @@ namespace ElevenHopem.MoonSweepers.Environment
 
             MeshCollider mc = terrainObj.AddComponent<MeshCollider>();
             mc.sharedMesh = mesh;
+            Physics.SyncTransforms();
         }
 
         private void BuildCelestialSkyAndLighting()

@@ -138,7 +138,7 @@ namespace ElevenHopem.MoonSweepers.Economy
         private void HarvestNearbyDust()
         {
             float searchRadius = stationType == "drone" ? cleanRadius : 34f;
-            Collider[] hits = Physics.OverlapSphere(transform.position, searchRadius);
+            Collider[] hits = Physics.OverlapSphere(transform.position, searchRadius, ~0, QueryTriggerInteraction.Collide);
             for (int i = 0; i < hits.Length; i++)
             {
                 RegolithDustPatch patch = hits[i].GetComponent<RegolithDustPatch>();
