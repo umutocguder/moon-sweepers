@@ -64,3 +64,6 @@ CLAUDE.md
 WORKLOG.md
 build_mac.log
 unity_open.log
+
+# graphify generated knowledge graph
+graphify-out/
