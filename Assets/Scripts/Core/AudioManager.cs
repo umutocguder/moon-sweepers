@@ -20,6 +20,8 @@ namespace ElevenHopem.MoonSweepers.Core
         private AudioClip coinSoundClip;
         private AudioClip mineralSoundClip;
         private AudioClip upgradeSoundClip;
+        private AudioClip contractSoundClip;
+        private AudioClip meteorImpactClip;
         private AudioClip jumpSoundClip;
         private AudioClip vacuumLoopClip;
         private AudioClip thrusterLoopClip;
@@ -65,6 +67,8 @@ namespace ElevenHopem.MoonSweepers.Core
             coinSoundClip = CreateChimeClip("CoinChime", 0.34f, 880f, 1318.5f, 1760f);
             mineralSoundClip = CreateChimeClip("MineralSparkle", 0.42f, 1174.6f, 1567.9f, 2349.3f);
             upgradeSoundClip = CreateFanfareClip("UpgradeFanfare", 0.52f);
+            contractSoundClip = CreateChimeClip("ContractComplete", 0.65f, 659.25f, 987.77f, 1318.5f);
+            meteorImpactClip = CreateMeteorBoomClip("MeteorSeismicImpact", 0.85f);
             jumpSoundClip = CreateJumpWhooshClip("LunarJump", 0.18f);
             vacuumLoopClip = CreateVacuumLoopClip("VacuumTurbine", 1.2f);
             thrusterLoopClip = CreateThrusterLoopClip("ThrusterLoop", 1.0f);
@@ -95,6 +99,24 @@ namespace ElevenHopem.MoonSweepers.Core
             {
                 sfxSource.pitch = 1.0f;
                 sfxSource.PlayOneShot(mineralSoundClip, 0.78f);
+            }
+        }
+
+        public void PlayContractComplete()
+        {
+            if (contractSoundClip != null)
+            {
+                sfxSource.pitch = 1.0f;
+                sfxSource.PlayOneShot(contractSoundClip, 0.88f);
+            }
+        }
+
+        public void PlayMeteorImpact()
+        {
+            if (meteorImpactClip != null)
+            {
+                sfxSource.pitch = Random.Range(0.92f, 1.05f);
+                sfxSource.PlayOneShot(meteorImpactClip, 0.82f);
             }
         }
 
@@ -158,6 +180,28 @@ namespace ElevenHopem.MoonSweepers.Core
             {
                 loopSource.Stop();
             }
+        }
+
+        private AudioClip CreateMeteorBoomClip(string clipName, float duration)
+        {
+            int sampleRate = 44100;
+            int samples = Mathf.CeilToInt(sampleRate * duration);
+            float[] data = new float[samples];
+            float lp = 0f;
+
+            for (int i = 0; i < samples; i++)
+            {
+                float t = (float)i / sampleRate;
+                float env = Mathf.Exp(-3.8f * t);
+                float subFreq = Mathf.Lerp(95f, 34f, t / duration);
+                float sub = Mathf.Sin(2f * Mathf.PI * subFreq * t) * 0.65f;
+                lp += 0.05f * ((Random.value * 2f - 1f) - lp);
+                data[i] = (sub + lp * 0.7f) * env * 0.65f;
+            }
+
+            AudioClip clip = AudioClip.Create(clipName, samples, 1, sampleRate, false);
+            clip.SetData(data, 0);
+            return clip;
         }
 
         private AudioClip CreateFilteredSwishClip(string clipName, float duration)

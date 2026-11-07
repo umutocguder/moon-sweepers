@@ -13,6 +13,8 @@ namespace ElevenHopem.MoonSweepers.Environment
 {
     public class RegolithDustPatch : MonoBehaviour
     {
+        public static readonly List<RegolithDustPatch> ActivePatches = new List<RegolithDustPatch>();
+
         [SerializeField] private float maxDustMassKg = 14f;
         [SerializeField] private float currentDustMassKg = 14f;
         [SerializeField] private bool canDropMinerals = true;
@@ -27,18 +29,26 @@ namespace ElevenHopem.MoonSweepers.Environment
         private Vector3 baseClusterScale = Vector3.one;
         private float respawnTimer = 0f;
         private int mineralTier = 0;
+        private bool isMeteoriteNode = false;
         private bool registeredWithManager = false;
 
         public float CurrentDustMassKg => currentDustMassKg;
         public float MaxDustMassKg => maxDustMassKg;
         public bool IsFullyCleaned => currentDustMassKg <= 0.05f;
-        public bool HasEmbeddedMineral => mineralTier > 0;
+        public bool HasEmbeddedMineral => mineralTier > 0 || isMeteoriteNode;
+        public bool IsMeteoriteNode => isMeteoriteNode;
 
         public event Action<float> OnDustCleaned;
+        public event Action OnPatchFullyCleaned;
 
         private void Awake()
         {
             gameObject.tag = "DustPatch";
+            if (!ActivePatches.Contains(this))
+            {
+                ActivePatches.Add(this);
+            }
+
             hitCollider = GetComponent<SphereCollider>();
             if (hitCollider == null)
             {
@@ -68,8 +78,56 @@ namespace ElevenHopem.MoonSweepers.Environment
             }
         }
 
-        public void ConfigureVisuals(int seed, float radiusScale, float massKg)
+        private void OnDestroy()
         {
+            ActivePatches.Remove(this);
+            if (registeredWithManager && GameManager.Instance != null)
+            {
+                GameManager.Instance.UnregisterDustPatch(IsFullyCleaned);
+            }
+        }
+
+        public void ConfigureAsMeteorite(int seed, float massKg)
+        {
+            isMeteoriteNode = true;
+            autoRespawn = false;
+            mineralTier = 4;
+            ConfigureVisuals(seed, 2.15f, massKg);
+
+            if (visualClusterRoot != null)
+            {
+                GameObject core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                core.name = "MoltenMeteorCore";
+                Destroy(core.GetComponent<Collider>());
+                core.transform.SetParent(visualClusterRoot, false);
+                core.transform.localPosition = new Vector3(0f, 0.34f, 0f);
+                core.transform.localScale = new Vector3(0.52f, 0.42f, 0.52f);
+                Renderer r = core.GetComponent<Renderer>();
+                r.sharedMaterial = LunarMaterialLibrary.GetEmissiveMaterial(
+                    "MeteorCoreAmber",
+                    new Color(1.0f, 0.52f, 0.12f),
+                    new Color(2.4f, 1.05f, 0.18f)
+                );
+                clusterRenderers.Add(r);
+                embeddedCrystal = core.transform;
+
+                GameObject glowObj = new GameObject("MeteorPointGlow");
+                glowObj.transform.SetParent(visualClusterRoot, false);
+                glowObj.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+                Light pt = glowObj.AddComponent<Light>();
+                pt.type = LightType.Point;
+                pt.color = new Color(1.0f, 0.62f, 0.2f);
+                pt.range = 9.5f;
+                pt.intensity = 2.2f;
+            }
+        }
+
+        public void ConfigureVisuals(int seed, float radiusScale, float massKg, bool allowRespawn = true)
+        {
+            if (!isMeteoriteNode)
+            {
+                autoRespawn = allowRespawn;
+            }
             maxDustMassKg = massKg;
             currentDustMassKg = massKg;
 
@@ -123,38 +181,41 @@ namespace ElevenHopem.MoonSweepers.Environment
                 clusterRenderers.Add(smr);
             }
 
-            float roll = Mathf.Abs(Mathf.Sin(seed * 12.9898f) * 43758.5453f) % 1f;
-            if (canDropMinerals && roll < mineralDropChance)
+            if (!isMeteoriteNode)
             {
-                if (roll < 0.05f) mineralTier = 3;
-                else if (roll < 0.14f) mineralTier = 2;
-                else mineralTier = 1;
-
-                GameObject crystal = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                crystal.name = "EmbeddedMineral";
-                Collider cCol = crystal.GetComponent<Collider>();
-                if (cCol != null) Destroy(cCol);
-
-                crystal.transform.SetParent(visualClusterRoot, false);
-                crystal.transform.localPosition = new Vector3(0.12f, 0.24f, -0.08f);
-                crystal.transform.localRotation = Quaternion.Euler(32f, seed * 29f, 41f);
-                crystal.transform.localScale = new Vector3(0.16f, 0.28f, 0.16f);
-
-                Renderer cr = crystal.GetComponent<Renderer>();
-                if (mineralTier == 3)
+                float roll = Mathf.Abs(Mathf.Sin(seed * 12.9898f) * 43758.5453f) % 1f;
+                if (canDropMinerals && roll < mineralDropChance)
                 {
-                    cr.sharedMaterial = LunarMaterialLibrary.GetEmissiveMaterial("RelicGold", new Color(1f, 0.82f, 0.2f), new Color(1.4f, 0.95f, 0.15f));
+                    if (roll < 0.05f) mineralTier = 3;
+                    else if (roll < 0.14f) mineralTier = 2;
+                    else mineralTier = 1;
+
+                    GameObject crystal = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    crystal.name = "EmbeddedMineral";
+                    Collider cCol = crystal.GetComponent<Collider>();
+                    if (cCol != null) Destroy(cCol);
+
+                    crystal.transform.SetParent(visualClusterRoot, false);
+                    crystal.transform.localPosition = new Vector3(0.12f, 0.24f, -0.08f);
+                    crystal.transform.localRotation = Quaternion.Euler(32f, seed * 29f, 41f);
+                    crystal.transform.localScale = new Vector3(0.16f, 0.28f, 0.16f);
+
+                    Renderer cr = crystal.GetComponent<Renderer>();
+                    if (mineralTier == 3)
+                    {
+                        cr.sharedMaterial = LunarMaterialLibrary.GetEmissiveMaterial("RelicGold", new Color(1f, 0.82f, 0.2f), new Color(1.4f, 0.95f, 0.15f));
+                    }
+                    else if (mineralTier == 2)
+                    {
+                        cr.sharedMaterial = LunarMaterialLibrary.GetEmissiveMaterial("HeliumCrystal", new Color(0.2f, 0.9f, 1f), new Color(0.15f, 1.25f, 1.5f));
+                    }
+                    else
+                    {
+                        cr.sharedMaterial = LunarMaterialLibrary.GetSurfaceMaterial("TitaniumChunkMat", new Color(0.78f, 0.83f, 0.90f), 0.88f, 0.78f);
+                    }
+                    clusterRenderers.Add(cr);
+                    embeddedCrystal = crystal.transform;
                 }
-                else if (mineralTier == 2)
-                {
-                    cr.sharedMaterial = LunarMaterialLibrary.GetEmissiveMaterial("HeliumCrystal", new Color(0.2f, 0.9f, 1f), new Color(0.15f, 1.25f, 1.5f));
-                }
-                else
-                {
-                    cr.sharedMaterial = LunarMaterialLibrary.GetSurfaceMaterial("TitaniumChunkMat", new Color(0.78f, 0.83f, 0.90f), 0.88f, 0.78f);
-                }
-                clusterRenderers.Add(cr);
-                embeddedCrystal = crystal.transform;
             }
 
             if (hitCollider != null)
@@ -167,7 +228,7 @@ namespace ElevenHopem.MoonSweepers.Environment
         {
             if (embeddedCrystal != null && !IsFullyCleaned)
             {
-                embeddedCrystal.Rotate(Vector3.up, 28f * Time.deltaTime, Space.World);
+                embeddedCrystal.Rotate(Vector3.up, 34f * Time.deltaTime, Space.World);
             }
 
             if (IsFullyCleaned && autoRespawn)
@@ -210,7 +271,11 @@ namespace ElevenHopem.MoonSweepers.Environment
 
         private void OnFullyCleaned()
         {
-            if (mineralTier > 0 || (canDropMinerals && UnityEngine.Random.value < 0.12f))
+            if (isMeteoriteNode)
+            {
+                AwardMeteoriteCore();
+            }
+            else if (mineralTier > 0 || (canDropMinerals && UnityEngine.Random.value < 0.12f))
             {
                 AwardRareMineral();
             }
@@ -219,6 +284,25 @@ namespace ElevenHopem.MoonSweepers.Environment
             if (hitCollider != null) hitCollider.enabled = false;
             respawnTimer = 0f;
             GameManager.Instance?.ReportPatchCleanedState(true);
+            OnPatchFullyCleaned?.Invoke();
+
+            if (isMeteoriteNode)
+            {
+                Destroy(gameObject, 0.25f);
+            }
+        }
+
+        private void AwardMeteoriteCore()
+        {
+            PlayerInventory inventory = FindFirstObjectByType<PlayerInventory>();
+            if (inventory != null)
+            {
+                inventory.AddMineral("Chondrite Meteor Core", 1, 260f);
+            }
+            GameManager.Instance?.RecordMineralExtracted(1);
+            GameManager.Instance?.RecordMeteorHarvested();
+            GameManager.Instance?.NotifyToast("METEORITE HARVESTED: Chondrite Meteor Core (+260 LC value)!");
+            AudioManager.Instance?.PlayMineralPickup();
         }
 
         private void AwardRareMineral()
@@ -243,6 +327,7 @@ namespace ElevenHopem.MoonSweepers.Environment
                 GameManager.Instance?.NotifyToast("Extracted: Titanium Ore Chunk (+22 LC value)");
             }
 
+            GameManager.Instance?.RecordMineralExtracted(1);
             AudioManager.Instance?.PlayMineralPickup();
         }
 

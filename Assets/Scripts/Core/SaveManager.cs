@@ -15,16 +15,22 @@ namespace ElevenHopem.MoonSweepers.Core
     public class GameSaveData
     {
         public string brand = "11Hopem";
-        public string version = "1.0.0";
+        public string version = "2.0.0";
         public long lunarCredits = 0;
         public int currentToolIndex = 0;
-        public bool[] unlockedTools = new bool[] { true, false, false, false, false };
+        public bool[] unlockedTools = new bool[] { true, false, false, false, false, false };
         public float backpackCapacity = 30f;
         public float jetpackMaxFuel = 100f;
         public int conveyorLevel = 0;
         public int droneLevel = 0;
+        public int roverBotLevel = 0;
+        public int refineryLevel = 0;
+        public bool massDriverUnlocked = false;
+        public int contractIndex = 0;
+        public float contractProgress = 0f;
         public float totalDustCleanedKg = 0f;
         public string[] purchasedUpgradeIds = Array.Empty<string>();
+        public int[] upgradePurchaseCounts = Array.Empty<int>();
         public string timestamp;
         public string sha256Checksum;
     }
@@ -95,11 +101,18 @@ namespace ElevenHopem.MoonSweepers.Core
                     Debug.LogWarning("[SaveManager] Checksum mismatch in save file.");
                 }
 
-                if (loadedData.unlockedTools == null || loadedData.unlockedTools.Length < 5)
+                bool[] migratedTools = new bool[6];
+                migratedTools[0] = true;
+                if (loadedData.unlockedTools != null)
                 {
-                    loadedData.unlockedTools = new bool[] { true, false, false, false, false };
+                    for (int i = 0; i < Mathf.Min(loadedData.unlockedTools.Length, migratedTools.Length); i++)
+                    {
+                        migratedTools[i] = loadedData.unlockedTools[i];
+                    }
                 }
-                loadedData.unlockedTools[0] = true;
+                migratedTools[0] = true;
+                loadedData.unlockedTools = migratedTools;
+
                 return loadedData;
             }
             catch (Exception ex)

@@ -30,7 +30,7 @@ All architectural milestones, decisions, and feature developments are logged her
 - **Next Steps:**
   - Register in Antigravity IDE project catalog (`f0ecd30b-5512-4d20-a6b9-125b0d2c30eb`).
   - Push to GitHub remote `umutocguder/moon-sweepers` on `master` and `dev`.
-  - Deploy to Vercel production at `https://moon-sweepers.vercel.app`.
+  - Deploy to Vercel production at `https://moon.11hopem.com`.
   - Sync global `ai-context` (Project #42) and report to Umut in Turkish.
 
 ---

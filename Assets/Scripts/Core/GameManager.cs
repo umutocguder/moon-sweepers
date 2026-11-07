@@ -25,10 +25,22 @@ namespace ElevenHopem.MoonSweepers.Core
         private float totalDustCleanedKg = 0f;
         private int totalPatches = 0;
         private int cleanedPatches = 0;
+        private float overchargeHeat = 0f;
+        private float satelliteValueBonus = 0f;
+        private float monolithPowerBonus = 0f;
+        private int refineryLevel = 0;
+        private bool massDriverUnlocked = false;
+        private float autoBeamDustAccumulator = 0f;
 
         public float LunarGravity => lunarGravity;
         public long LunarCredits => lunarCredits;
-        public float BaseDustValuePerKg => baseDustValuePerKg;
+        public float BaseDustValuePerKg => baseDustValuePerKg * TotalValueMultiplier;
+        public float TotalValueMultiplier => 1.0f + refineryLevel * 0.40f + satelliteValueBonus;
+        public float OverchargeMultiplier => 1.0f + Mathf.Clamp01(overchargeHeat) * 0.75f;
+        public float TotalSweepPowerMultiplier => (1.0f + monolithPowerBonus) * OverchargeMultiplier;
+        public float OverchargeRatio => Mathf.Clamp01(overchargeHeat);
+        public bool HasMassDriver => massDriverUnlocked;
+        public int RefineryLevel => refineryLevel;
         public bool IsGamePaused => isGamePaused;
         public bool IsShopOpen => isShopOpen;
         public float TotalDustCleanedKg => totalDustCleanedKg;
@@ -38,6 +50,10 @@ namespace ElevenHopem.MoonSweepers.Core
         public event Action<bool> OnPauseStateChanged;
         public event Action<bool> OnShopStateChanged;
         public event Action<string> OnToastNotification;
+        public event Action<float> OnDustCleanedGlobal;
+        public event Action<float> OnDustDepositedGlobal;
+        public event Action<int> OnMineralExtractedGlobal;
+        public event Action OnMeteorCoreHarvested;
 
         private void Awake()
         {
@@ -67,6 +83,11 @@ namespace ElevenHopem.MoonSweepers.Core
 
         private void Update()
         {
+            if (overchargeHeat > 0f && !isGamePaused)
+            {
+                overchargeHeat = Mathf.Max(0f, overchargeHeat - Time.deltaTime * 0.22f);
+            }
+
             if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.B))
             {
                 if (!isGamePaused)
@@ -101,6 +122,55 @@ namespace ElevenHopem.MoonSweepers.Core
             }
         }
 
+        public void FeedOvercharge(float delta)
+        {
+            overchargeHeat = Mathf.Clamp01(overchargeHeat + delta);
+        }
+
+        public void SetRefineryLevel(int level)
+        {
+            refineryLevel = Mathf.Max(refineryLevel, level);
+        }
+
+        public void SetMassDriverUnlocked(bool unlocked)
+        {
+            massDriverUnlocked = unlocked;
+        }
+
+        public void GrantSatelliteTelemetryBonus()
+        {
+            satelliteValueBonus = 0.25f;
+            NotifyToast("LANDMARK RESTORED: Orbital Satellite Online! Permanent +25% LC Value!");
+            AudioManager.Instance?.PlayContractComplete();
+        }
+
+        public void GrantMonolithOverclockBonus()
+        {
+            monolithPowerBonus = 0.25f;
+            NotifyToast("MONOLITH AWAKENED: Harmonic Field Active! Permanent +25% Sweep Power!");
+            AudioManager.Instance?.PlayContractComplete();
+        }
+
+        public float ApplyMassDriverAutoTransfer(float gatheredKg)
+        {
+            if (!massDriverUnlocked || gatheredKg <= 0f) return gatheredKg;
+
+            float beamedKg = gatheredKg * 0.40f;
+            float remainingKg = gatheredKg - beamedKg;
+            autoBeamDustAccumulator += beamedKg;
+
+            if (autoBeamDustAccumulator >= 3.0f)
+            {
+                long earned = (long)Mathf.Max(1f, Mathf.Round(autoBeamDustAccumulator * BaseDustValuePerKg));
+                OnDustDepositedGlobal?.Invoke(autoBeamDustAccumulator);
+                autoBeamDustAccumulator = 0f;
+                lunarCredits += earned;
+                OnCreditsChanged?.Invoke(lunarCredits);
+            }
+
+            return remainingKg;
+        }
+
         public void LockGameplayCursor()
         {
             Cursor.lockState = CursorLockMode.Locked;
@@ -127,6 +197,15 @@ namespace ElevenHopem.MoonSweepers.Core
             totalPatches++;
         }
 
+        public void UnregisterDustPatch(bool wasCleaned)
+        {
+            totalPatches = Mathf.Max(0, totalPatches - 1);
+            if (wasCleaned)
+            {
+                cleanedPatches = Mathf.Max(0, cleanedPatches - 1);
+            }
+        }
+
         public void ReportPatchCleanedState(bool isCleaned)
         {
             cleanedPatches = Mathf.Clamp(cleanedPatches + (isCleaned ? 1 : -1), 0, Mathf.Max(1, totalPatches));
@@ -137,7 +216,29 @@ namespace ElevenHopem.MoonSweepers.Core
             if (amountKg > 0f)
             {
                 totalDustCleanedKg += amountKg;
+                OnDustCleanedGlobal?.Invoke(amountKg);
             }
+        }
+
+        public void RecordDustDeposited(float amountKg)
+        {
+            if (amountKg > 0f)
+            {
+                OnDustDepositedGlobal?.Invoke(amountKg);
+            }
+        }
+
+        public void RecordMineralExtracted(int count)
+        {
+            if (count > 0)
+            {
+                OnMineralExtractedGlobal?.Invoke(count);
+            }
+        }
+
+        public void RecordMeteorHarvested()
+        {
+            OnMeteorCoreHarvested?.Invoke();
         }
 
         public void NotifyToast(string message)
@@ -216,6 +317,7 @@ namespace ElevenHopem.MoonSweepers.Core
             PlayerInventory inv = FindFirstObjectByType<PlayerInventory>();
             PlayerController pc = FindFirstObjectByType<PlayerController>();
             ToolController tc = FindFirstObjectByType<ToolController>();
+            ContractManager cm = FindFirstObjectByType<ContractManager>();
 
             GameSaveData data = new GameSaveData
             {
@@ -224,22 +326,31 @@ namespace ElevenHopem.MoonSweepers.Core
                 backpackCapacity = inv != null ? inv.MaxBackpackCapacityKg : 30f,
                 jetpackMaxFuel = pc != null ? pc.MaxFuel : 100f,
                 currentToolIndex = tc != null ? tc.ActiveToolIndex : 0,
-                unlockedTools = tc != null ? tc.GetUnlockedToolStates() : new bool[] { true, false, false, false, false }
+                unlockedTools = tc != null ? tc.GetUnlockedToolStates() : new bool[] { true, false, false, false, false, false },
+                refineryLevel = refineryLevel,
+                massDriverUnlocked = massDriverUnlocked,
+                contractIndex = cm != null ? cm.CurrentContractIndex : 0,
+                contractProgress = cm != null ? cm.CurrentProgress : 0f
             };
 
             if (ShopManager.Instance != null)
             {
+                ShopUpgradeItem[] all = ShopManager.Instance.GetAllUpgrades();
                 List<string> owned = new List<string>();
-                foreach (var upg in ShopManager.Instance.GetAllUpgrades())
+                int[] counts = new int[all.Length];
+                for (int i = 0; i < all.Length; i++)
                 {
-                    if (upg.isPurchased)
+                    counts[i] = all[i].purchaseCount;
+                    if (all[i].isPurchased)
                     {
-                        owned.Add(upg.id);
+                        owned.Add(all[i].id);
                     }
                 }
                 data.purchasedUpgradeIds = owned.ToArray();
+                data.upgradePurchaseCounts = counts;
                 data.conveyorLevel = ShopManager.Instance.ConveyorCount;
                 data.droneLevel = ShopManager.Instance.DroneCount;
+                data.roverBotLevel = ShopManager.Instance.RoverBotCount;
             }
 
             SaveManager.Instance.SaveGame(data);
@@ -253,6 +364,8 @@ namespace ElevenHopem.MoonSweepers.Core
 
             lunarCredits = data.lunarCredits;
             totalDustCleanedKg = data.totalDustCleanedKg;
+            refineryLevel = data.refineryLevel;
+            massDriverUnlocked = data.massDriverUnlocked;
 
             PlayerInventory inv = FindFirstObjectByType<PlayerInventory>();
             if (inv != null && data.backpackCapacity > 30f)
@@ -272,9 +385,23 @@ namespace ElevenHopem.MoonSweepers.Core
                 tc.RestoreUnlockedTools(data.unlockedTools, data.currentToolIndex);
             }
 
-            if (ShopManager.Instance != null && data.purchasedUpgradeIds != null)
+            ContractManager cm = FindFirstObjectByType<ContractManager>();
+            if (cm != null)
             {
-                ShopManager.Instance.RestorePurchasedState(data.purchasedUpgradeIds, data.conveyorLevel, data.droneLevel);
+                cm.RestoreContractState(data.contractIndex, data.contractProgress);
+            }
+
+            if (ShopManager.Instance != null)
+            {
+                ShopManager.Instance.RestorePurchasedState(
+                    data.purchasedUpgradeIds,
+                    data.upgradePurchaseCounts,
+                    data.conveyorLevel,
+                    data.droneLevel,
+                    data.roverBotLevel,
+                    data.refineryLevel,
+                    data.massDriverUnlocked
+                );
             }
         }
 
